@@ -129,12 +129,35 @@ export default function AdminEventsPage() {
       images: imageUrls.length > 0 ? imageUrls : null,
     }
 
+    const submitDataWithoutImages = {
+      title: submitData.title,
+      description: submitData.description,
+      event_type: submitData.event_type,
+      game: submitData.game,
+      track: submitData.track,
+      car_class: submitData.car_class,
+      start_date: submitData.start_date,
+      end_date: submitData.end_date,
+      prize: submitData.prize,
+      entry_fee: submitData.entry_fee,
+      max_participants: submitData.max_participants,
+      is_active: submitData.is_active,
+    }
+
     if (editingEvent) {
       // Update existing event
-      const { error } = await supabase
+      let { error } = await supabase
         .from('events')
         .update(submitData)
         .eq('id', editingEvent.id)
+
+      if (error?.message.includes("Could not find the 'images' column")) {
+        const retry = await supabase
+          .from('events')
+          .update(submitDataWithoutImages)
+          .eq('id', editingEvent.id)
+        error = retry.error
+      }
 
       if (!error) {
         fetchEvents()
@@ -144,12 +167,22 @@ export default function AdminEventsPage() {
       }
     } else {
       // Create new event
-      const { error } = await supabase
+      let { error } = await supabase
         .from('events')
         .insert({
           ...submitData,
           created_by: user?.id,
         })
+
+      if (error?.message.includes("Could not find the 'images' column")) {
+        const retry = await supabase
+          .from('events')
+          .insert({
+            ...submitDataWithoutImages,
+            created_by: user?.id,
+          })
+        error = retry.error
+      }
 
       if (!error) {
         fetchEvents()
