@@ -20,6 +20,8 @@ type Discount = {
   created_at: string
 }
 
+type DiscountUpdate = Omit<Discount, 'id' | 'created_at' | 'current_uses'>
+
 export default function AdminDiscountsPage() {
   const [discounts, setDiscounts] = useState<Discount[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,11 +63,17 @@ export default function AdminDiscountsPage() {
     e.preventDefault()
     const { data: { user } } = await supabase.auth.getUser()
 
-    const submitData = {
-      ...formData,
+    const submitData: DiscountUpdate = {
       code: formData.code.toUpperCase(),
-      valid_until: formData.valid_until || null,
+      description: formData.description,
+      discount_type: formData.discount_type,
+      discount_value: formData.discount_value,
+      min_purchase: formData.min_purchase,
       max_uses: formData.max_uses || null,
+      valid_from: formData.valid_from,
+      valid_until: formData.valid_until || null,
+      is_active: formData.is_active,
+      applies_to: formData.applies_to,
     }
 
     if (editingDiscount) {
