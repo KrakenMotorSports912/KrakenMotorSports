@@ -23,6 +23,21 @@ type Event = {
   created_at: string
 }
 
+type EventFormData = {
+  title: string
+  description: string
+  event_type: Event['event_type']
+  game: string
+  track: string
+  car_class: string
+  start_date: string
+  end_date: string
+  prize: string
+  entry_fee: number
+  max_participants: number
+  is_active: boolean
+}
+
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,10 +47,10 @@ export default function AdminEventsPage() {
   const [newImageUrl, setNewImageUrl] = useState('')
   const supabase = createClient()
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<EventFormData>({
     title: '',
     description: '',
-    event_type: 'race' as const,
+    event_type: 'race',
     game: 'assetto_corsa',
     track: '',
     car_class: '',

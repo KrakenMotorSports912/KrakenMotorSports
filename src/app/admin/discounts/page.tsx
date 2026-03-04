@@ -21,6 +21,18 @@ type Discount = {
 }
 
 type DiscountUpdate = Omit<Discount, 'id' | 'created_at' | 'current_uses'>
+type DiscountFormData = {
+  code: string
+  description: string
+  discount_type: Discount['discount_type']
+  discount_value: number
+  min_purchase: number
+  max_uses: number | null
+  valid_from: string
+  valid_until: string
+  is_active: boolean
+  applies_to: string[]
+}
 
 export default function AdminDiscountsPage() {
   const [discounts, setDiscounts] = useState<Discount[]>([])
@@ -29,17 +41,17 @@ export default function AdminDiscountsPage() {
   const [editingDiscount, setEditingDiscount] = useState<Discount | null>(null)
   const supabase = createClient()
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<DiscountFormData>({
     code: '',
     description: '',
-    discount_type: 'percentage' as const,
+    discount_type: 'percentage',
     discount_value: 10,
     min_purchase: 0,
-    max_uses: null as number | null,
+    max_uses: null,
     valid_from: new Date().toISOString().slice(0, 16),
     valid_until: '',
     is_active: true,
-    applies_to: ['session', 'founders_pass', 'merchandise'] as string[],
+    applies_to: ['session', 'founders_pass', 'merchandise'],
   })
 
   useEffect(() => {
