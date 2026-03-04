@@ -4,11 +4,12 @@ import { useEffect } from 'react';
 
 export function useKonamiCode(callback: () => void) {
   useEffect(() => {
-    const konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65]; // up up down down left right left right B A
+    const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
     let konamiIndex = 0;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.keyCode === konamiCode[konamiIndex]) {
+      const key = e.key.toLowerCase();
+      if (key === konamiCode[konamiIndex].toLowerCase()) {
         konamiIndex++;
 
         if (konamiIndex === konamiCode.length) {
