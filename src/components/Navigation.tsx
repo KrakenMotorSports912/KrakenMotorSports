@@ -54,7 +54,9 @@ export default function Navigation() {
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      isScrolled ? 'bg-kraken-dark/95 backdrop-blur-sm border-b-2 border-kraken-cyan' : 'bg-transparent'
+      isScrolled || isOpen
+        ? 'bg-kraken-dark border-b-2 border-kraken-cyan'
+        : 'bg-transparent'
     }`}>
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-20">
