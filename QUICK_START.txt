@@ -1,0 +1,140 @@
+🦑 KRAKEN MOTORSPORTS - QUICK START GUIDE
+==========================================
+
+Congratulations! Your Kraken Motorsports pre-launch website is ready to go.
+
+📂 WHAT'S BEEN CREATED
+----------------------
+✅ index.html      - Complete website with all sections
+✅ styles.css      - Dark-cyan Kraken theme with animations
+✅ script.js       - Countdown timer & interactive features
+✅ README.md       - Full documentation
+✅ assets/         - Organized folder structure for media
+
+🚀 HOW TO VIEW YOUR SITE
+------------------------
+1. Double-click "index.html" to open in your default browser
+   OR
+2. Right-click "index.html" → Open With → Choose your browser
+
+That's it! No installation or setup required.
+
+✨ FEATURES INCLUDED
+--------------------
+• Hero section with animated logo and glowing effects
+• About section explaining the Kraken Rig
+• Mock leaderboard with example lap times
+• Founders Pass information (limited to 50 passes)
+• Branding gallery showing logo variations
+• Live countdown to Summer 2026 launch date
+• Social media links (ready for your URLs)
+• Fully responsive design (works on mobile, tablet, desktop)
+• Smooth scroll animations
+• Easter egg: Try the Konami Code! (↑↑↓↓←→←→BA)
+
+📝 NEXT STEPS - CUSTOMIZE YOUR SITE
+-----------------------------------
+
+1. UPDATE SOCIAL MEDIA LINKS
+   • Open index.html in a text editor
+   • Find all links with href="#"
+   • Replace with your actual Discord, Instagram, TikTok URLs
+
+2. CHANGE THE EMAIL ADDRESS
+   • Search for "info@krakenmotorsports.com"
+   • Replace with your real contact email
+
+3. ADJUST THE COUNTDOWN DATE
+   • Open script.js
+   • Line 9: Change '2026-07-01T00:00:00' to your launch date
+   • Format: 'YYYY-MM-DDTHH:MM:SS'
+
+4. ADD YOUR LOGO & IMAGES
+   • Place images in assets/images/ folder
+   • Update image paths in index.html
+   • Replace 🦑 emoji with actual logo
+
+5. CUSTOMIZE COLORS (Optional)
+   • Open styles.css
+   • Edit the :root variables at the top
+   • Change hex codes for your brand colors
+
+6. MODIFY CONTENT
+   • Edit text directly in index.html
+   • Update leaderboard times
+   • Change feature descriptions
+   • Adjust Founders Pass perks
+
+🌐 DEPLOY YOUR WEBSITE
+-----------------------
+To make your site live on the internet:
+
+OPTION 1: GitHub Pages (Free)
+1. Create GitHub account
+2. Create new repository
+3. Upload all files
+4. Enable GitHub Pages in settings
+5. Your site will be live at: username.github.io/repo-name
+
+OPTION 2: Netlify (Free)
+1. Create Netlify account
+2. Drag and drop your "Rad Racing" folder
+3. Get instant live URL
+4. Optional: Connect custom domain
+
+OPTION 3: Traditional Web Hosting
+1. Purchase hosting & domain
+2. Upload files via FTP
+3. Point domain to hosting
+4. Site goes live
+
+💡 PRO TIPS
+-----------
+• Test on multiple devices (phone, tablet, desktop)
+• Share preview link before official launch
+• Update content regularly to build hype
+• Post about it on social media
+• Collect email addresses for Founders Pass interest
+
+🎮 EASTER EGG
+-------------
+Your website has a secret! 
+Try entering the Konami Code on your keyboard:
+↑ ↑ ↓ ↓ ← → ← → B A
+
+🐛 TROUBLESHOOTING
+------------------
+• Site not displaying correctly?
+  → Make sure all files are in the same folder
+  → Check console for errors (F12 in browser)
+
+• Countdown not working?
+  → Verify the date format in script.js
+  → Check browser console for JavaScript errors
+
+• Animations choppy?
+  → Close other browser tabs
+  → Test on different browser
+
+• Social links not working?
+  → They're placeholders! Update href="#" with real URLs
+
+📚 DOCUMENTATION
+----------------
+Full documentation available in README.md
+
+Need help? Check:
+• README.md for detailed docs
+• assets/images/README.md for image specs
+• assets/videos/README.md for video guidelines
+• assets/fonts/README.md for typography info
+
+🦑 UNLEASH THE BEAST!
+---------------------
+Your Kraken Motorsports website is ready to make waves.
+Time to build hype for the ultimate VR racing experience!
+
+Questions? Check the README.md file for more details.
+
+Built with 🦑 and adrenaline.
+© 2026 Kraken Motorsports

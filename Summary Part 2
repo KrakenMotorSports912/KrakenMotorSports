@@ -1,0 +1,136 @@
+---
+
+Kraken Motorsports Website – Build Specification for GitHub AI
+
+Project Overview
+Create a lightweight, fast, modern website for Kraken Motorsports, a VR racing‑rig experience launching soon. The site should function as a pre‑launch hub: showcasing the brand, explaining the concept, collecting interest, and preparing for Founders Pass sales. No backend hardware integration is needed yet—just clean structure and placeholder components.
+
+The site should feel:
+- bold  
+- dark‑cyan themed  
+- slightly chaotic sticker‑bomb aesthetic  
+- modern motorsport energy  
+- clean, fast, and responsive  
+
+Think: esports team + arcade attraction + VR racing.
+
+---
+
+Core Requirements
+
+1. Landing Page
+A single‑scroll hero section with:
+- Kraken logo  
+- Tagline: “The Kraken Rig Experience — Coming Soon”  
+- Dark cyan + black color palette  
+- Subtle animated tentacle or glitch effect (CSS only, no heavy JS)  
+- CTA buttons:
+  - “Join the Discord”
+  - “Reserve a Founders Pass” (placeholder link)
+  - “Follow the Build”
+
+2. About the Kraken Rig (Pre‑Launch Version)
+A section explaining the concept:
+- What the Kraken Rig is  
+- VR racing + public leaderboard  
+- Lounge placement concept  
+- “Build‑in‑public” story  
+- No hardware images needed—use placeholder mockups
+
+3. Leaderboard Preview
+A static mock leaderboard:
+- Table with fake names + lap times  
+- Styled like a motorsport timing screen  
+- Placeholder data only  
+- Should look like it will eventually update live
+
+4. Founders Pass Section
+A section describing:
+- What the Founders Pass is  
+- Perks list  
+- Limited slots  
+- Placeholder “Reserve” button  
+- No payment integration yet
+
+5. Sticker‑Bomb / Branding Gallery
+A grid of:
+- Kraken logo variations  
+- Tentacle patterns  
+- Color palette  
+- UI mockups  
+- Placeholder images allowed  
+
+This is purely aesthetic.
+
+6. Countdown Component
+A simple JS countdown timer to a placeholder launch date:
+- “Kraken Rig Launches In: XX Days”  
+- Editable date in code
+
+7. Contact / Social Section
+Links to:
+- Discord  
+- Instagram  
+- TikTok  
+- Email placeholder  
+
+---
+
+Technical Requirements
+
+Framework
+Use Next.js or Astro (developer’s choice) with:
+- Fast static generation  
+- Clean component structure  
+- Easy future expansion  
+
+Styling
+Use TailwindCSS with:
+- Custom dark‑cyan theme  
+- Motorsport‑style typography  
+- Optional CSS animations for tentacles/glitch effects  
+
+Structure
+Pages/components needed:
+- / (landing page)
+- /founders (Founders Pass info)
+- /leaderboard (static preview)
+- /branding (gallery)
+- /contact
+
+No backend required yet
+Use:
+- Static JSON for leaderboard mock data  
+- Placeholder links for payments  
+- Placeholder images for rig mockups  
+
+Future‑proofing
+Write components so they can later accept:
+- Real leaderboard API data  
+- Real session tracking  
+- Real payment links  
+- Real rig photos  
+
+---
+
+Tone + Aesthetic Guidelines
+- Dark, neon‑cyan, high‑contrast  
+- Clean motorsport UI elements  
+- Occasional chaotic sticker‑bomb clusters  
+- Kraken mascot integrated subtly  
+- Esports‑style typography  
+- Smooth animations, not heavy or laggy  
+
+---
+
+Deliverables
+- Fully responsive website  
+- Clean component structure  
+- Placeholder content ready to be swapped  
+- Easy to deploy on Vercel or Netlify  
+- README explaining:
+  - How to edit mock data  
+  - How to change branding  
+  - How to update countdown date  
+
+---

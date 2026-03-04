@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Kraken Motorsports Events - Upcoming races, tournaments, and challenges">
+    <title>Events | Kraken Motorsports</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <section class="subpage-hero">
+        <div class="container">
+            <h1>🦑 EVENTS</h1>
+            <p>Pick your challenge, lock in your slot, and race for the top spot. These events are designed for hype, competition, and leaderboard domination.</p>
+            <div class="page-nav">
+                <a href="index.html">Home</a>
+                <a href="signup.html">Signups</a>
+                <a href="leaderboard.html">Leaderboard</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="page-section">
+        <div class="container">
+            <h2 class="section-title">UPCOMING RACES</h2>
+            <div class="page-grid">
+                <article class="page-card">
+                    <h3>Night Apex Sprint</h3>
+                    <p>High-speed short format race with rotating car classes and one final winner.</p>
+                    <ul>
+                        <li>Date: March 22, 2026</li>
+                        <li>Game: Assetto Corsa Competizione</li>
+                        <li>Format: 12-lap sprint</li>
+                        <li>Prize: Founder merch + free sessions</li>
+                    </ul>
+                    <p class="form-note">Limited slots. First-come first-served.</p>
+                </article>
+
+                <article class="page-card">
+                    <h3>F1 2025 Time Trial</h3>
+                    <p>Set your fastest clean lap and fight for top 10 board placement.</p>
+                    <ul>
+                        <li>Date: April 5, 2026</li>
+                        <li>Game: F1 2025</li>
+                        <li>Format: Time-trial leaderboard</li>
+                        <li>Prize: VIP queue week pass</li>
+                    </ul>
+                    <p class="form-note">Screenshot validation required for final ranking.</p>
+                </article>
+
+                <article class="page-card">
+                    <h3>Forza Kraken Cup</h3>
+                    <p>Multi-stage challenge event with heats and a championship final.</p>
+                    <ul>
+                        <li>Date: April 19, 2026</li>
+                        <li>Game: Forza Motorsport</li>
+                        <li>Format: 3 rounds + final</li>
+                        <li>Prize: Founder upgrade credit</li>
+                    </ul>
+                    <p class="form-note">Bring your A-game. Finals are streamed.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="page-section" style="padding-top: 0;">
+        <div class="container">
+            <h2 class="section-title">LIVE AVAILABILITY CALENDAR</h2>
+            <p class="section-subtitle">See open time slots in real time and choose the best session window.</p>
+
+            <div class="calendar-shell" id="availabilityCalendar">
+                <div class="calendar-panel">
+                    <div class="calendar-controls">
+                        <button type="button" class="calendar-nav-btn" id="calendarPrev">←</button>
+                        <h3 id="calendarMonthLabel">Month Year</h3>
+                        <button type="button" class="calendar-nav-btn" id="calendarNext">→</button>
+                    </div>
+
+                    <div class="calendar-weekdays">
+                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid"></div>
+                </div>
+
+                <aside class="slots-panel">
+                    <h3 id="slotsTitle">Select a day</h3>
+                    <p class="form-note">Available times update automatically based on current time.</p>
+                    <div id="slotsList" class="slots-list"></div>
+                </aside>
+            </div>
+        </div>
+    </section>
+
+    <section class="page-section" style="padding-top: 0;">
+        <div class="container" style="text-align:center;">
+            <a href="signup.html" class="cta-button">SIGN UP FOR EVENTS</a>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2026 Kraken Motorsports. All rights reserved.</p>
+                <p><a href="index.html" style="color:#00ffff;">Back to Home</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
