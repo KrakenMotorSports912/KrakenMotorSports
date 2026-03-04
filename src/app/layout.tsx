@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: 'Kraken Motorsports | VR Racing Rig Experience',
   description: 'The ultimate VR racing experience - Coming Soon. Join the Founders Pass program for exclusive early access.',
   keywords: 'VR racing, sim racing, Assetto Corsa, F1, Forza, leaderboard, esports',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   openGraph: {
     title: 'Kraken Motorsports',
     description: 'Unleash the Beast - VR Racing Rig Experience',
