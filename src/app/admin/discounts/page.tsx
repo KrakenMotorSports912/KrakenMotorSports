@@ -77,9 +77,10 @@ export default function AdminDiscountsPage() {
     }
 
     if (editingDiscount) {
+      // @ts-expect-error - Supabase type inference limitation
       const { error } = await supabase
         .from('discounts')
-        .update(submitData as Record<string, unknown>)
+        .update(submitData)
         .eq('id', editingDiscount.id)
 
       if (!error) {
