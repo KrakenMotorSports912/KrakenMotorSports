@@ -34,7 +34,7 @@ type EventFormData = {
   end_date: string
   prize: string
   entry_fee: number
-  max_participants: number
+  max_participants: number | null
   is_active: boolean
 }
 
@@ -45,6 +45,8 @@ export default function AdminEventsPage() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [newImageUrl, setNewImageUrl] = useState('')
+  const [formError, setFormError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const supabase = createClient()
 
   const [formData, setFormData] = useState<EventFormData>({
@@ -81,10 +83,49 @@ export default function AdminEventsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError('')
+    setIsSubmitting(true)
+
+    const startDate = new Date(formData.start_date)
+    const endDate = new Date(formData.end_date)
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      setFormError('Please provide valid start and end dates.')
+      setIsSubmitting(false)
+      return
+    }
+
+    if (startDate > endDate) {
+      setFormError('Start date must be before end date.')
+      setIsSubmitting(false)
+      return
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
 
+    if (!user?.id) {
+      setFormError('You must be logged in as an admin to create events.')
+      setIsSubmitting(false)
+      return
+    }
+
     const submitData = {
-      ...formData,
+      title: formData.title.trim(),
+      description: formData.description.trim() || null,
+      event_type: formData.event_type,
+      game: formData.game,
+      track: formData.track.trim(),
+      car_class: formData.car_class.trim() || null,
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
+      prize: formData.prize.trim() || null,
+      entry_fee: Number.isFinite(formData.entry_fee) ? formData.entry_fee : 0,
+      max_participants: formData.max_participants == null
+        ? null
+        : Number.isFinite(formData.max_participants)
+          ? formData.max_participants
+          : null,
+      is_active: formData.is_active,
       images: imageUrls.length > 0 ? imageUrls : null,
     }
 
@@ -98,6 +139,8 @@ export default function AdminEventsPage() {
       if (!error) {
         fetchEvents()
         resetForm()
+      } else {
+        setFormError(error.message)
       }
     } else {
       // Create new event
@@ -111,8 +154,12 @@ export default function AdminEventsPage() {
       if (!error) {
         fetchEvents()
         resetForm()
+      } else {
+        setFormError(error.message)
       }
     }
+
+    setIsSubmitting(false)
   }
 
   const handleEdit = (event: Event) => {
@@ -176,6 +223,8 @@ export default function AdminEventsPage() {
     })
     setImageUrls([])
     setNewImageUrl('')
+    setFormError('')
+    setIsSubmitting(false)
     setEditingEvent(null)
     setShowForm(false)
   }
@@ -340,7 +389,7 @@ export default function AdminEventsPage() {
                   min="0"
                   step="0.01"
                   value={formData.entry_fee}
-                  onChange={(e) => setFormData({ ...formData, entry_fee: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, entry_fee: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   className="input-field"
                 />
               </div>
@@ -350,8 +399,8 @@ export default function AdminEventsPage() {
                 <input
                   type="number"
                   min="1"
-                  value={formData.max_participants}
-                  onChange={(e) => setFormData({ ...formData, max_participants: parseInt(e.target.value) })}
+                  value={formData.max_participants ?? ''}
+                  onChange={(e) => setFormData({ ...formData, max_participants: e.target.value === '' ? null : parseInt(e.target.value, 10) })}
                   className="input-field"
                 />
               </div>
@@ -448,13 +497,14 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="flex gap-4">
-              <button type="submit" className="btn-primary">
-                {editingEvent ? 'UPDATE EVENT' : 'CREATE EVENT'}
+              <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                {isSubmitting ? 'SAVING...' : editingEvent ? 'UPDATE EVENT' : 'CREATE EVENT'}
               </button>
               <button type="button" onClick={resetForm} className="btn-secondary">
                 CANCEL
               </button>
             </div>
+            {formError && <p className="text-red-400 text-sm">{formError}</p>}
           </form>
         </div>
       )}
