@@ -79,7 +79,7 @@ export default function AdminDiscountsPage() {
     if (editingDiscount) {
       const { error } = await supabase
         .from('discounts')
-        .update(submitData as any)
+        .update(submitData as Record<string, unknown>)
         .eq('id', editingDiscount.id)
 
       if (!error) {
