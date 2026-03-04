@@ -1,0 +1,67 @@
+'use client'
+
+import Link from 'next/link'
+
+export default function Hero() {
+  return (
+    <section id="home" className="min-h-screen flex flex-col justify-center items-center relative overflow-hidden pt-20">
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-kraken-dark via-kraken-deep to-kraken-cyan-dark opacity-50" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(0,255,255,0.15),transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_30%,rgba(255,0,255,0.15),transparent_50%)]" />
+
+      {/* Content */}
+      <div className="container mx-auto px-4 text-center relative z-10">
+        <div className="mb-8">
+          <h1 className="text-6xl md:text-9xl font-display tracking-wider text-kraken-cyan animate-glow mb-4">
+            KRAKEN
+            <span className="block text-4xl md:text-5xl mt-2 text-white">MOTORSPORTS</span>
+          </h1>
+        </div>
+
+        <h2 className="text-3xl md:text-5xl font-display tracking-wider text-white mb-6">
+          🦑 UNLEASH THE BEAST 🦑
+        </h2>
+        
+        <p className="text-4xl md:text-6xl font-display tracking-wider text-kraken-pink text-glow-pink mb-4 animate-pulse-slow">
+          COMING SOON
+        </p>
+        
+        <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-2xl mx-auto">
+          The ultimate VR racing experience is surfacing...
+        </p>
+
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+          <a 
+            href={process.env.NEXT_PUBLIC_DISCORD_INVITE || '#'} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="btn-primary flex items-center gap-2"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+            </svg>
+            JOIN DISCORD
+          </a>
+          
+          <Link href="#founders" className="btn-secondary">
+            RESERVE FOUNDERS PASS
+          </Link>
+          
+          <Link href="#leaderboard" className="btn-secondary">
+            VIEW LEADERBOARD
+          </Link>
+        </div>
+      </div>
+
+      {/* Scroll Indicator */}
+      <div className="absolute bottom-8 inset-x-0 mx-auto w-fit flex flex-col items-center gap-2 text-kraken-cyan animate-bounce z-20">
+        <span className="text-sm tracking-wider">SCROLL TO EXPLORE</span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M7 10l5 5 5-5z"/>
+        </svg>
+      </div>
+    </section>
+  )
+}

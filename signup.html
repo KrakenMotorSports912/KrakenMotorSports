@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Kraken Motorsports Signups - Event registration and founders pass interest">
+    <title>Signups | Kraken Motorsports</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <section class="subpage-hero">
+        <div class="container">
+            <h1>📝 SIGNUPS</h1>
+            <p>Register for upcoming events, join the Founders Pass interest list, and secure your spot before slots fill up.</p>
+            <div class="page-nav">
+                <a href="index.html">Home</a>
+                <a href="events.html">Events</a>
+                <a href="leaderboard.html">Leaderboard</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="page-section">
+        <div class="container">
+            <h2 class="section-title">REGISTER NOW</h2>
+
+            <form class="signup-form" id="signupForm">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="fullName">Full Name</label>
+                        <input id="fullName" name="fullName" type="text" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="email">Email</label>
+                        <input id="email" name="email" type="email" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="discord">Discord Handle</label>
+                        <input id="discord" name="discord" type="text" placeholder="name#1234">
+                    </div>
+                    <div class="form-field">
+                        <label for="game">Primary Game</label>
+                        <select id="game" name="game" required>
+                            <option value="">Select a game</option>
+                            <option>Assetto Corsa</option>
+                            <option>Assetto Corsa Competizione</option>
+                            <option>F1 2025</option>
+                            <option>Forza Motorsport</option>
+                            <option>Forza Horizon</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="interest">Signup Type</label>
+                        <select id="interest" name="interest" required>
+                            <option value="">Choose one</option>
+                            <option>Event Registration</option>
+                            <option>Founders Pass Interest</option>
+                            <option>Both</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="event">Preferred Event</label>
+                        <select id="event" name="event">
+                            <option value="">No specific event</option>
+                            <option>Night Apex Sprint</option>
+                            <option>F1 2025 Time Trial</option>
+                            <option>Forza Kraken Cup</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-field" style="margin-top:1rem;">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" rows="4" placeholder="Anything we should know?"></textarea>
+                </div>
+
+                <div style="margin-top:1.2rem; text-align:center;">
+                    <button class="cta-button" type="submit">SUBMIT SIGNUP</button>
+                    <p class="form-note">This demo form confirms your interest and can be connected to your database next.</p>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2026 Kraken Motorsports. All rights reserved.</p>
+                <p><a href="index.html" style="color:#00ffff;">Back to Home</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+        document.getElementById('signupForm')?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            alert('✅ Signup received! We\'ll contact you with next steps soon.');
+            e.target.reset();
+        });
+    </script>
+</body>
+</html>
