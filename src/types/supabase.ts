@@ -156,8 +156,16 @@ export type Database = {
           created_by?: string | null
         }
         Update: {
+          code?: string
+          description?: string | null
+          discount_type?: 'percentage' | 'fixed_amount'
+          discount_value?: number
+          min_purchase?: number
+          max_uses?: number | null
+          valid_from?: string
+          valid_until?: string | null
           is_active?: boolean
-          current_uses?: number
+          applies_to?: string[]
         }
       }
       founders_passes: {
