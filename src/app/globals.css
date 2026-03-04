@@ -144,9 +144,15 @@ body.kraken-mode-theme {
 
 body.kraken-mode-theme section,
 body.kraken-mode-theme header,
+body.kraken-mode-theme nav,
 body.kraken-mode-theme footer {
   filter: hue-rotate(130deg) saturate(1.4) contrast(1.06);
   transition: filter 0.35s ease;
+}
+
+body.kraken-mode-theme nav {
+  background: rgba(10, 10, 10, 0.95) !important;
+  backdrop-filter: blur(10px) hue-rotate(130deg) saturate(1.4);
 }
 
 body.kraken-mode-theme h1,
