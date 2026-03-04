@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Toaster } from 'react-hot-toast'
+import { KonamiCodeListener } from '@/components/KonamiCodeListener'
 
 export const metadata: Metadata = {
   title: 'Kraken Motorsports | VR Racing Rig Experience',
@@ -26,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body>
+        <KonamiCodeListener />
         {children}
         <Toaster 
           position="bottom-right"

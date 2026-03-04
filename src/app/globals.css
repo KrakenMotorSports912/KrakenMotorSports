@@ -106,3 +106,56 @@
   height: 40px;
   animation: spin 0.8s linear infinite;
 }
+
+/* Kraken Mode Easter Egg Animations */
+@keyframes fall {
+  to {
+    top: 100vh;
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes krakenShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+  20%, 40%, 60%, 80% { transform: translateX(10px); }
+}
+
+@keyframes krakenPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+}
+
+@keyframes krakenBounce {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  25% { transform: translate(-50%, -50%) translateY(-20px); }
+  75% { transform: translate(-50%, -50%) translateY(20px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+body.kraken-mode-theme {
+  transition: background 0.35s ease, color 0.35s ease;
+  background: radial-gradient(circle at 50% 20%, #2b0044 0%, #0a0016 45%, #05000d 100%) !important;
+}
+
+body.kraken-mode-theme section,
+body.kraken-mode-theme header,
+body.kraken-mode-theme footer {
+  filter: hue-rotate(130deg) saturate(1.4) contrast(1.06);
+  transition: filter 0.35s ease;
+}
+
+body.kraken-mode-theme h1,
+body.kraken-mode-theme h2,
+body.kraken-mode-theme h3 {
+  text-shadow: 0 0 14px rgba(255, 0, 255, 0.7), 0 0 26px rgba(0, 255, 255, 0.45) !important;
+}
+
+body.kraken-mode-theme button,
+body.kraken-mode-theme a {
+  box-shadow: 0 0 18px rgba(255, 0, 255, 0.45), 0 0 24px rgba(0, 255, 255, 0.35) !important;
+}

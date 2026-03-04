@@ -1,8 +1,31 @@
 'use client'
 
 import Link from 'next/link'
+import { useLaunchSettings } from '@/lib/useLaunchSettings'
 
 export default function Hero() {
+  const { phase } = useLaunchSettings()
+
+  const phaseContent = {
+    prelaunch: {
+      badge: 'COMING SOON',
+      subtitle: 'The ultimate VR racing experience is surfacing...',
+      primaryCta: 'RESERVE FOUNDERS PASS',
+    },
+    active: {
+      badge: 'OFFICIALLY LIVE',
+      subtitle: 'Kraken Motorsports is now open. Join events and hit the leaderboard.',
+      primaryCta: 'BOOK YOUR SESSION',
+    },
+    established: {
+      badge: 'SEASON IN PROGRESS',
+      subtitle: 'The arena is fully active. Chase rankings, events, and founder perks.',
+      primaryCta: 'VIEW UPCOMING EVENTS',
+    },
+  } as const
+
+  const content = phaseContent[phase]
+
   return (
     <section id="home" className="min-h-screen flex flex-col justify-center items-center relative overflow-hidden pt-20">
       {/* Animated Background */}
@@ -24,11 +47,11 @@ export default function Hero() {
         </h2>
         
         <p className="text-4xl md:text-6xl font-display tracking-wider text-kraken-pink text-glow-pink mb-4 animate-pulse-slow">
-          COMING SOON
+          {content.badge}
         </p>
         
         <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-2xl mx-auto">
-          The ultimate VR racing experience is surfacing...
+          {content.subtitle}
         </p>
 
         {/* CTA Buttons */}
@@ -45,8 +68,8 @@ export default function Hero() {
             JOIN DISCORD
           </a>
           
-          <Link href="#founders" className="btn-secondary">
-            RESERVE FOUNDERS PASS
+          <Link href={phase === 'prelaunch' ? '#founders' : '#events'} className="btn-secondary">
+            {content.primaryCta}
           </Link>
           
           <Link href="#leaderboard" className="btn-secondary">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Trophy, Calendar, Tag, Users, Clock, TrendingUp } from 'lucide-react'
+import { getDefaultLaunchDate, getLaunchPhase } from '@/lib/launchPhase'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -14,6 +15,9 @@ export default function AdminDashboard() {
     recentEntries: [] as any[],
   })
   const [loading, setLoading] = useState(true)
+  const [launchDate, setLaunchDate] = useState(getDefaultLaunchDate().slice(0, 16))
+  const [savingLaunchDate, setSavingLaunchDate] = useState(false)
+  const [launchMessage, setLaunchMessage] = useState('')
 
   useEffect(() => {
     fetchDashboardStats()
@@ -47,7 +51,51 @@ export default function AdminDashboard() {
       activeDiscounts: discountsCount || 0,
       recentEntries: recentData || [],
     })
+
+    const { data: launchData } = await supabase
+      .from('site_settings')
+      .select('value_text')
+      .eq('key', 'launch_date')
+      .single()
+
+    if (launchData?.value_text) {
+      setLaunchDate(launchData.value_text.slice(0, 16))
+    }
+
     setLoading(false)
+  }
+
+  const saveLaunchDate = async () => {
+    setSavingLaunchDate(true)
+    setLaunchMessage('')
+    const supabase = createClient()
+
+    const parsedDate = new Date(launchDate)
+    if (Number.isNaN(parsedDate.getTime())) {
+      setLaunchMessage('Please enter a valid opening date.')
+      setSavingLaunchDate(false)
+      return
+    }
+
+    const nextLaunchDate = parsedDate.toISOString()
+
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert(
+        {
+          key: 'launch_date',
+          value_text: nextLaunchDate,
+        },
+        { onConflict: 'key' }
+      )
+
+    if (error) {
+      setLaunchMessage(`Could not save launch date: ${error.message}`)
+    } else {
+      setLaunchMessage('Launch date saved successfully.')
+    }
+
+    setSavingLaunchDate(false)
   }
 
   const StatCard = ({ icon: Icon, label, value, color, href }: any) => (
@@ -67,6 +115,8 @@ export default function AdminDashboard() {
       </div>
     )
   }
+
+  const sitePhase = getLaunchPhase(new Date(launchDate).toISOString())
 
   return (
     <div className="space-y-8">
@@ -192,6 +242,38 @@ export default function AdminDashboard() {
           <h4 className="font-display text-xl text-white mb-2">REVIEW TIMES</h4>
           <p className="text-gray-400 text-sm">Approve or reject submissions</p>
         </a>
+      </div>
+
+      <div className="card">
+        <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
+          SITE LAUNCH SETTINGS
+        </h3>
+        <div className="grid md:grid-cols-[1fr_auto] gap-4 items-end">
+          <div>
+            <label className="block text-kraken-cyan mb-2 font-display">OFFICIAL OPENING DATE</label>
+            <input
+              type="datetime-local"
+              value={launchDate}
+              onChange={(event) => setLaunchDate(event.target.value)}
+              className="input-field"
+            />
+            <p className="text-gray-400 text-sm mt-2">
+              Current phase preview: <span className="text-white uppercase">{sitePhase}</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={saveLaunchDate}
+            disabled={savingLaunchDate}
+            className="btn-primary"
+          >
+            {savingLaunchDate ? 'SAVING...' : 'SAVE OPENING DATE'}
+          </button>
+        </div>
+        {launchMessage && <p className="text-sm text-gray-300 mt-3">{launchMessage}</p>}
+        <p className="text-xs text-gray-500 mt-4">
+          Requires Supabase table: site_settings(key text primary key, value_text text).
+        </p>
       </div>
     </div>
   )
