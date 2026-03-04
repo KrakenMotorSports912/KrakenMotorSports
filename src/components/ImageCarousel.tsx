@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 type ImageCarouselProps = {
@@ -12,9 +12,16 @@ type ImageCarouselProps = {
 
 export default function ImageCarousel({ images, alt, autoPlay = true, interval = 5000 }: ImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({})
+
+  const getImageSrc = (value: string) => value.trim()
+
+  const markFailed = (index: number) => {
+    setFailedImages((prev) => ({ ...prev, [index]: true }))
+  }
 
   // Auto-advance images
-  useState(() => {
+  useEffect(() => {
     if (!autoPlay || images.length <= 1) return
 
     const timer = setInterval(() => {
@@ -22,7 +29,7 @@ export default function ImageCarousel({ images, alt, autoPlay = true, interval =
     }, interval)
 
     return () => clearInterval(timer)
-  })
+  }, [autoPlay, images.length, interval])
 
   const goToPrevious = () => {
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
@@ -47,11 +54,18 @@ export default function ImageCarousel({ images, alt, autoPlay = true, interval =
   if (images.length === 1) {
     return (
       <div className="relative w-full h-64 rounded overflow-hidden">
-        <img
-          src={images[0]}
-          alt={alt}
-          className="w-full h-full object-cover"
-        />
+        {failedImages[0] ? (
+          <div className="w-full h-full bg-kraken-card flex items-center justify-center">
+            <p className="text-gray-500 text-sm">Image failed to load</p>
+          </div>
+        ) : (
+          <img
+            src={getImageSrc(images[0])}
+            alt={alt}
+            className="w-full h-full object-cover"
+            onError={() => markFailed(0)}
+          />
+        )}
       </div>
     )
   }
@@ -59,11 +73,18 @@ export default function ImageCarousel({ images, alt, autoPlay = true, interval =
   return (
     <div className="relative w-full h-64 rounded overflow-hidden group">
       {/* Image */}
-      <img
-        src={images[currentIndex]}
-        alt={`${alt} - ${currentIndex + 1}`}
-        className="w-full h-full object-cover transition-opacity duration-500"
-      />
+      {failedImages[currentIndex] ? (
+        <div className="w-full h-full bg-kraken-card flex items-center justify-center">
+          <p className="text-gray-500 text-sm">Image failed to load</p>
+        </div>
+      ) : (
+        <img
+          src={getImageSrc(images[currentIndex])}
+          alt={`${alt} - ${currentIndex + 1}`}
+          className="w-full h-full object-cover transition-opacity duration-500"
+          onError={() => markFailed(currentIndex)}
+        />
+      )}
 
       {/* Navigation Arrows */}
       <button
