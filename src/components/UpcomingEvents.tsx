@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Calendar, Trophy, Users, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import ImageCarousel from './ImageCarousel'
+import Link from 'next/link'
 
 type Event = {
   id: string
@@ -121,9 +122,9 @@ export default function UpcomingEvents() {
                   )}
                 </div>
 
-                <button className="btn-primary mt-6 w-full">
+                <Link href={`/bookings?from=home&event_id=${event.id}`} className="btn-primary mt-6 w-full text-center">
                   REGISTER
-                </button>
+                </Link>
               </div>
             ))}
           </div>

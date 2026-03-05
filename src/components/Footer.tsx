@@ -26,6 +26,14 @@ export default function Footer() {
             <h4 className="text-xl font-display tracking-wide text-kraken-cyan mb-4">
               QUICK LINKS
             </h4>
+            <div className="mb-4">
+              <Link
+                href="/bookings?from=home"
+                className="btn-primary inline-flex"
+              >
+                BOOK NOW
+              </Link>
+            </div>
             <div className="flex flex-wrap gap-4">
               {navLinks.map((link) => (
                 <Link

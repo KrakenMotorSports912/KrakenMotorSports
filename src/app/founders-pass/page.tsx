@@ -1,8 +1,10 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function FoundersPassPage() {
+  const router = useRouter()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [discord, setDiscord] = useState('')
@@ -10,6 +12,27 @@ export default function FoundersPassPage() {
   const [sent, setSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const resetForm = () => {
+    setFullName('')
+    setEmail('')
+    setDiscord('')
+    setReason('')
+    setSent(false)
+    setError(null)
+  }
+
+  const handleCancel = () => {
+    resetForm()
+
+    const from = new URLSearchParams(window.location.search).get('from')
+    if (from === 'home') {
+      router.push('/#founders')
+      return
+    }
+
+    router.push('/')
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -81,9 +104,14 @@ export default function FoundersPassPage() {
             onChange={(event) => setReason(event.target.value)}
           ></textarea>
 
-          <button type="submit" className="btn-primary" disabled={submitting}>
-            {submitting ? 'SUBMITTING...' : 'JOIN FOUNDERS LIST'}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className="btn-primary" disabled={submitting}>
+              {submitting ? 'SUBMITTING...' : 'JOIN FOUNDERS LIST'}
+            </button>
+            <button type="button" className="btn-secondary" onClick={handleCancel} disabled={submitting}>
+              CANCEL
+            </button>
+          </div>
 
           {sent && <p className="text-kraken-cyan">You are on the interest list. We will contact you next.</p>}
           {error && <p className="text-red-400">{error}</p>}

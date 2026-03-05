@@ -76,6 +76,7 @@ export default function Navigation() {
   const navLinks = [
     { href: '#home', label: 'Home' },
     { href: '#about', label: 'About' },
+    { href: '/bookings?from=home', label: 'Bookings' },
     { href: '#leaderboard', label: 'Leaderboard' },
     { href: '#events', label: 'Events' },
     { href: '#founders', label: 'Founders Pass' },
