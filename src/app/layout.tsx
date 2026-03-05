@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'The ultimate VR racing experience - Coming Soon. Join the Founders Pass program for exclusive early access.',
   keywords: 'VR racing, sim racing, Assetto Corsa, F1, Forza, leaderboard, esports',
   verification: {
-    google: 'H8zoPyqhEukzp8vByPMLQasZK5n8V5KA5FwiczODI9U',
+    google: 'MyC9w4h0tMC1AdCqh-5ciM8_2P80ix4ZD3265iXynng',
   },
   icons: {
     icon: '/favicon.svg',
