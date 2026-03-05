@@ -75,14 +75,14 @@ export default function Contact() {
             </p>
             <div className="flex flex-col items-center gap-3">
               <a 
-                href="mailto:info@krakenmotorsports.com"
+                href="mailto:KrakenMotorSports912@gmail.com"
                 className="btn-secondary w-full inline-flex items-center justify-center gap-2"
               >
                 <Mail size={20} />
                 <span>EMAIL</span>
               </a>
               <p className="text-kraken-cyan text-xs text-center">
-                info@<br />kraken<br />motorsports.com
+                Kraken<br />Motorsports912<br />@gmail.com
               </p>
             </div>
           </div>
