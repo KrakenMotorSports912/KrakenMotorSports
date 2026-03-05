@@ -8,14 +8,16 @@ export default function Contact() {
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {/* Discord */}
-          <div className="card">
-            <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
-              JOIN THE COMMUNITY
-            </h3>
-            <p className="text-gray-400 mb-6">
-              Get behind-the-scenes updates, participate in naming polls, and be the first 
-              to know about Founders Pass availability.
-            </p>
+          <div className="card flex flex-col justify-between">
+            <div>
+              <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
+                JOIN THE COMMUNITY
+              </h3>
+              <p className="text-gray-400 mb-6">
+                Get behind-the-scenes updates, participate in naming polls, and be the first 
+                to know about Founders Pass availability.
+              </p>
+            </div>
             <a 
               href={process.env.NEXT_PUBLIC_DISCORD_INVITE || '#'} 
               target="_blank" 
@@ -30,13 +32,15 @@ export default function Contact() {
           </div>
 
           {/* Social Media */}
-          <div className="card">
-            <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
-              FOLLOW THE BUILD
-            </h3>
-            <p className="text-gray-400 mb-6">
-              Watch the Kraken Rig come to life. We're sharing the entire journey on social media.
-            </p>
+          <div className="card flex flex-col justify-between">
+            <div>
+              <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
+                FOLLOW THE BUILD
+              </h3>
+              <p className="text-gray-400 mb-6">
+                Watch the Kraken Rig come to life. We're sharing the entire journey on social media.
+              </p>
+            </div>
             <div className="space-y-3">
               <a 
                 href={process.env.NEXT_PUBLIC_INSTAGRAM_URL || '#'} 
@@ -66,14 +70,19 @@ export default function Contact() {
           </div>
 
           {/* Email */}
-          <div className="card">
-            <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
-              GENERAL INQUIRIES
-            </h3>
-            <p className="text-gray-400 mb-6">
-              Questions about the Kraken Rig, Founders Pass, or partnerships?
-            </p>
-            <div className="flex flex-col items-center gap-3">
+          <div className="card flex flex-col justify-between">
+            <div>
+              <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
+                GENERAL INQUIRIES
+              </h3>
+              <p className="text-gray-400 mb-6">
+                Questions about the Kraken Rig, Founders Pass, or partnerships?
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <p className="text-kraken-cyan text-xs text-center">
+                Kraken<br />Motorsports912<br />@gmail.com
+              </p>
               <a 
                 href="mailto:KrakenMotorSports912@gmail.com"
                 className="btn-secondary w-full inline-flex items-center justify-center gap-2"
@@ -81,9 +90,6 @@ export default function Contact() {
                 <Mail size={20} />
                 <span>EMAIL</span>
               </a>
-              <p className="text-kraken-cyan text-xs text-center">
-                Kraken<br />Motorsports912<br />@gmail.com
-              </p>
             </div>
           </div>
         </div>
