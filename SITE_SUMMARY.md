@@ -3,11 +3,11 @@
 ## Project Overview
 **Kraken Motorsports** is a VR racing community platform built for competitive sim racers. The site serves as a hub for racing events, leaderboard competitions, and community engagement with a focus on the "Founders Pass" early supporter program.
 
-**Status:** Coming Soon (Pre-Launch)  
-**Launch Date:** TBD  
-**Technology:** Next.js 14 with TypeScript, Supabase Backend  
-**Live URL:** TBD  
-**Development Port:** localhost:3001
+**Status:** ✅ LIVE  
+**Launch Date:** July 1, 2026  
+**Technology:** Next.js 14 with TypeScript, Supabase Backend, Vercel Hosting  
+**Live URL:** Check your Vercel deployment  
+**Development Port:** localhost:3000
 
 ---
 
@@ -265,17 +265,19 @@ npm run dev
 
 ## Support & Contact
 
-**Discord**: [Join our community](NEXT_PUBLIC_DISCORD_INVITE)  
-**Email**: Contact form on site  
-**Admin Support**: Contact site administrator
+**Discord**: https://discord.gg/ag39FaqY  
+**Instagram**: https://www.instagram.com/krakenmotorsports912/  
+**TikTok**: https://www.tiktok.com/@krakenmotorsports912  
+**Email**: KrakenMotorSports912@gmail.com  
 
 ---
 
 ## License & Credits
 
-**Built with**: Next.js, Supabase, Tailwind CSS  
+**Built with**: Next.js 14, Supabase, Tailwind CSS, TypeScript  
+**Hosted on**: Vercel  
 **Maintained by**: Kraken Motorsports Team  
-**Last Updated**: March 3, 2026
+**Last Updated**: March 4, 2026
 
 ---
 
