@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: 'Kraken Motorsports | VR Racing Rig Experience',
   description: 'The ultimate VR racing experience - Coming Soon. Join the Founders Pass program for exclusive early access.',
   keywords: 'VR racing, sim racing, Assetto Corsa, F1, Forza, leaderboard, esports',
+  verification: {
+    google: 'H8zoPyqhEukzp8vByPMLQasZK5n8V5KA5FwiczODI9U',
+  },
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
