@@ -5,11 +5,19 @@ import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+const hasDiscordIdentity = (user: { app_metadata?: { provider?: string }; identities?: Array<{ provider?: string }>; user_metadata?: { provider?: string } } | null) => {
+  if (!user) return false
+  if (user.app_metadata?.provider === 'discord') return true
+  if (user.user_metadata?.provider === 'discord') return true
+  return (user.identities || []).some((identity) => identity.provider === 'discord')
+}
+
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isDiscordLinked, setIsDiscordLinked] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,6 +37,7 @@ export default function Navigation() {
     
     if (user) {
       setIsAuthenticated(true)
+      setIsDiscordLinked(hasDiscordIdentity(user))
       
       // Check if admin
       const { data: profile } = await supabase
@@ -40,8 +49,29 @@ export default function Navigation() {
       if (profile?.is_admin) {
         setIsAdmin(true)
       }
+      return
     }
+
+    setIsAuthenticated(false)
+    setIsAdmin(false)
+    setIsDiscordLinked(false)
   }
+
+  const accountHref = isAuthenticated
+    ? isAdmin
+      ? '/admin'
+      : isDiscordLinked
+      ? '/submit'
+      : '/login?link_discord=1'
+    : '/login'
+
+  const accountLabel = isAdmin
+    ? 'ADMIN'
+    : isAuthenticated
+    ? isDiscordLinked
+      ? 'SUBMIT'
+      : 'ADD DISCORD'
+    : 'LOG IN'
 
   const navLinks = [
     { href: '#home', label: 'Home' },
@@ -76,8 +106,8 @@ export default function Navigation() {
                 {link.label}
               </Link>
             ))}
-            <Link href={isAuthenticated ? "/admin" : "/login"} className="btn-secondary text-sm py-2 px-4">
-              {isAdmin ? 'ADMIN' : 'LOG IN'}
+            <Link href={accountHref} className="btn-secondary text-sm py-2 px-4">
+              {accountLabel}
             </Link>
           </div>
 
@@ -105,11 +135,11 @@ export default function Navigation() {
               </Link>
             ))}
             <Link
-              href={isAuthenticated ? "/admin" : "/login"}
+              href={accountHref}
               onClick={() => setIsOpen(false)}
               className="block btn-secondary text-center mt-4"
             >
-              {isAdmin ? 'ADMIN' : 'LOG IN'}
+              {accountLabel}
             </Link>
           </div>
         )}

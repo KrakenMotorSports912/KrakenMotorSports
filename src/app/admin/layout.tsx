@@ -6,12 +6,26 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { LayoutDashboard, Trophy, Calendar, Tag, Users, LogOut } from 'lucide-react'
 
+type AuthUser = {
+  app_metadata?: { provider?: string }
+  user_metadata?: { provider?: string }
+  identities?: Array<{ provider?: string }>
+}
+
+const hasDiscordIdentity = (user: AuthUser | null) => {
+  if (!user) return false
+  if (user.app_metadata?.provider === 'discord') return true
+  if (user.user_metadata?.provider === 'discord') return true
+  return (user.identities || []).some((identity) => identity.provider === 'discord')
+}
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isDiscordLinked, setIsDiscordLinked] = useState(false)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
@@ -27,6 +41,8 @@ export default function AdminLayout({
       router.push('/login')
       return
     }
+
+    setIsDiscordLinked(hasDiscordIdentity(user as AuthUser))
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -80,6 +96,18 @@ export default function AdminLayout({
             <p className="text-gray-400 text-sm">Kraken Motorsports Management</p>
           </div>
           <div className="flex w-full sm:w-auto flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+            {isDiscordLinked ? (
+              <span className="text-xs sm:text-sm font-display tracking-wide px-3 py-2 border-2 text-center border-green-400 text-green-300 bg-green-500/10">
+                DISCORD LINKED
+              </span>
+            ) : (
+              <Link
+                href="/login?link_discord=1"
+                className="text-xs sm:text-sm font-display tracking-wide px-3 py-2 border-2 text-center border-yellow-400 text-yellow-300 bg-yellow-500/10 hover:border-kraken-cyan hover:text-kraken-cyan transition-colors"
+              >
+                DISCORD NOT LINKED
+              </Link>
+            )}
             <Link href="/" className="btn-secondary text-sm py-2 px-4 text-center">
               VIEW SITE
             </Link>

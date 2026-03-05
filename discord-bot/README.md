@@ -64,6 +64,16 @@ Use these slash commands in your server:
 - `/leaderboard game:f1_2025 limit:10`
 - `/leaderboard game:f1_2025 track:monza car:mercedes-amg gt3 limit:10`
 - `/leaderboard event_id:<event_uuid> sort_by:submitted_at order:desc`
+- `/profile driver_name:<name>`
+- `/profile driver_name:<name> game:f1_2025`
+- `/season_leaderboard`
+- `/season_leaderboard game:f1_2025 track:monza limit:10`
+- `/queue_join game:f1_2025 minutes:20 eta:here now`
+- `/queue_list`
+- `/queue_status`
+- `/queue_next` (staff)
+- `/queue_done` (staff)
+- `/queue_leave`
 
 Leaderboard command supports these optional sort/filter options:
 
@@ -74,8 +84,42 @@ Leaderboard command supports these optional sort/filter options:
 - `sort_by` (`lap_time`, `submitted_at`, `driver`, `track`, `game`)
 - `order` (`asc`, `desc`)
 
+Gamification commands:
+
+- `/profile`
+	- Shows a driver's level, points, wins/podiums/top-10 counts, best lap, total lap time, and achievements.
+	- Points are based on approved laps with a base completion score + rank bonus.
+- `/season_leaderboard`
+	- Shows current month (UTC) points standings using approved laps.
+	- Supports `game`, `track`, and `car` filters.
+
+On-site simulator queue commands:
+
+- `/queue_join`
+	- Adds/updates your place in the physical rig queue.
+	- Stores game, requested session minutes, and optional ETA.
+- `/queue_list`
+	- Shows active sessions and waiting queue.
+- `/queue_status`
+	- Shows queue health and estimated wait times.
+- `/queue_next` (staff)
+	- Moves the next waiting driver onto an available rig.
+- `/queue_done` (staff)
+	- Ends an active session and frees a rig.
+- `/queue_leave`
+	- Removes yourself from waiting/active queue.
+
+Optional queue environment settings:
+
+- `SIMULATOR_COUNT` (default `1`)
+- `DEFAULT_SESSION_MINUTES` (default `20`)
+- `QUEUE_STAFF_ROLE_IDS` (comma-separated Discord role IDs allowed to run staff commands)
+
 Autocomplete support:
 
-- `/leaderboard` now autocompletes `game`, `track`, `car`, and `event_id`.
+- `/leaderboard` autocompletes `game`, `track`, `car`, and `event_id`.
+- `/profile` autocompletes `driver_name` and `game`.
+- `/season_leaderboard` autocompletes `game`, `track`, and `car`.
+- `/queue_join`, `/queue_list`, and `/queue_status` autocomplete `game`.
 - `game` and `track` suggestions include Admin Hub presets (`default_games` / `default_tracks`) plus live leaderboard data.
 - This means updates you make in Admin defaults are reflected in Discord suggestions automatically.

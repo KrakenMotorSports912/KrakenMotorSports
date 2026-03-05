@@ -1,5 +1,5 @@
 require('dotenv').config()
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js')
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits } = require('discord.js')
 const fs = require('fs/promises')
 const path = require('path')
 
@@ -12,7 +12,14 @@ const nightlyHour = Number(process.env.NIGHTLY_UPDATE_HOUR ?? 21)
 const nightlyMinute = Number(process.env.NIGHTLY_UPDATE_MINUTE ?? 0)
 const nightlyTimeZone = process.env.NIGHTLY_UPDATE_TIMEZONE || 'UTC'
 const stateFilePath = path.join(__dirname, 'nightly-state.json')
+const queueStateFilePath = path.join(__dirname, 'sim-queue-state.json')
 const siteUrl = 'https://kraken-motor-sports.vercel.app'
+const simulatorCount = Math.max(1, Number(process.env.SIMULATOR_COUNT ?? 1))
+const defaultSessionMinutes = Math.max(10, Number(process.env.DEFAULT_SESSION_MINUTES ?? 20))
+const queueStaffRoleIds = (process.env.QUEUE_STAFF_ROLE_IDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean)
 
 if (!token) {
   console.error('Missing DISCORD_TOKEN in .env')
@@ -67,6 +74,73 @@ const loadState = async () => {
 
 const saveState = async (state) => {
   await fs.writeFile(stateFilePath, JSON.stringify(state, null, 2), 'utf8')
+}
+
+const loadQueueState = async () => {
+  try {
+    const raw = await fs.readFile(queueStateFilePath, 'utf8')
+    const parsed = JSON.parse(raw)
+    const waiting = Array.isArray(parsed.waiting)
+      ? parsed.waiting
+      : Array.isArray(parsed.entries)
+      ? parsed.entries
+      : []
+    const active = Array.isArray(parsed.active) ? parsed.active : []
+    return { waiting, active }
+  } catch {
+    return { waiting: [], active: [] }
+  }
+}
+
+const saveQueueState = async (state) => {
+  await fs.writeFile(
+    queueStateFilePath,
+    JSON.stringify(
+      {
+        updatedAt: new Date().toISOString(),
+        waiting: state.waiting,
+        active: state.active,
+      },
+      null,
+      2
+    ),
+    'utf8'
+  )
+}
+
+const formatQueueEntry = (entry, index) => {
+  const bits = [
+    `**${entry.displayName}**`,
+    `Game: ${entry.game}`,
+    `Session: ${entry.minutes || defaultSessionMinutes}m`,
+    entry.eta ? `ETA: ${entry.eta}` : null,
+  ].filter(Boolean)
+
+  return `${index + 1}. ${bits.join(' • ')}`
+}
+
+const getAverageSessionMinutes = (entries) => {
+  const values = entries
+    .map((entry) => Number(entry.minutes || defaultSessionMinutes))
+    .filter((value) => Number.isFinite(value) && value > 0)
+
+  if (values.length === 0) return defaultSessionMinutes
+  const total = values.reduce((sum, value) => sum + value, 0)
+  return Math.round(total / values.length)
+}
+
+const estimateQueueWait = (position, averageSessionMins) => Math.max(0, Math.floor((position / simulatorCount) * averageSessionMins))
+
+const isQueueStaff = (interaction) => {
+  const hasStaffPermission =
+    interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+    interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)
+
+  if (hasStaffPermission) return true
+  if (!interaction.inGuild() || queueStaffRoleIds.length === 0) return false
+
+  const memberRoleIds = interaction.member?.roles?.cache ? [...interaction.member.roles.cache.keys()] : []
+  return memberRoleIds.some((roleId) => queueStaffRoleIds.includes(roleId))
 }
 
 const fetchEvents = async (limit = 5, game) => {
@@ -158,6 +232,149 @@ const getSortLabel = (sortBy = 'lap_time', order = 'asc') => {
       : 'Lap Time'
 
   return `${fieldLabel} (${order.toUpperCase()})`
+}
+
+const normalizeDriverName = (value = '') => value.trim().toLowerCase()
+
+const getRankBonus = (rank) => {
+  if (rank === 1) return 25
+  if (rank === 2) return 18
+  if (rank === 3) return 15
+  if (rank <= 5) return 10
+  if (rank <= 10) return 5
+  return 2
+}
+
+const getEntryPoints = (entry) => {
+  const completionPoints = 10
+  const rankBonus = getRankBonus(Number(entry.rank || 999))
+  return completionPoints + rankBonus
+}
+
+const getLevelForPoints = (points) => Math.floor(Math.sqrt(Math.max(points, 0) / 50)) + 1
+
+const formatMsDuration = (milliseconds) => {
+  const safeMs = Math.max(0, Number(milliseconds || 0))
+  const totalSeconds = Math.floor(safeMs / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`
+  }
+
+  return `${minutes}m ${seconds}s`
+}
+
+const buildAchievements = ({ lapsCount, wins, podiums, topTenCount, uniqueTracksCount, points }) => {
+  const achievements = []
+
+  if (lapsCount >= 1) achievements.push('First Blood')
+  if (topTenCount >= 1) achievements.push('Top 10 Driver')
+  if (podiums >= 1) achievements.push('Podium Finisher')
+  if (wins >= 1) achievements.push('Race Winner')
+  if (lapsCount >= 5) achievements.push('Consistent Racer')
+  if (lapsCount >= 20) achievements.push('Season Veteran')
+  if (uniqueTracksCount >= 5) achievements.push('Track Explorer')
+  if (points >= 500) achievements.push('Point Grinder')
+
+  return achievements
+}
+
+const getCurrentSeasonKey = () => {
+  const now = new Date()
+  const year = now.getUTCFullYear()
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
+const isEntryInSeason = (entry, seasonKey) => {
+  const createdAt = entry.created_at
+  if (!createdAt) return false
+  return String(createdAt).slice(0, 7) === seasonKey
+}
+
+const buildDriverProfile = (entries, driverName) => {
+  const normalizedTarget = normalizeDriverName(driverName)
+  const driverEntries = entries.filter((entry) => normalizeDriverName(entry.driver_name) === normalizedTarget)
+
+  if (driverEntries.length === 0) {
+    return null
+  }
+
+  const lapsCount = driverEntries.length
+  const points = driverEntries.reduce((sum, entry) => sum + getEntryPoints(entry), 0)
+  const level = getLevelForPoints(points)
+  const topTenCount = driverEntries.filter((entry) => Number(entry.rank) <= 10).length
+  const podiums = driverEntries.filter((entry) => Number(entry.rank) <= 3).length
+  const wins = driverEntries.filter((entry) => Number(entry.rank) === 1).length
+  const uniqueTracksCount = new Set(driverEntries.map((entry) => entry.track)).size
+  const bestLapMs = Math.min(...driverEntries.map((entry) => Number(entry.lap_time_ms || Number.MAX_SAFE_INTEGER)))
+  const totalLapMs = driverEntries.reduce((sum, entry) => sum + Number(entry.lap_time_ms || 0), 0)
+  const achievements = buildAchievements({
+    lapsCount,
+    wins,
+    podiums,
+    topTenCount,
+    uniqueTracksCount,
+    points,
+  })
+
+  return {
+    displayName: driverEntries[0].driver_name,
+    points,
+    level,
+    lapsCount,
+    topTenCount,
+    podiums,
+    wins,
+    uniqueTracksCount,
+    bestLapMs,
+    totalLapMs,
+    achievements,
+  }
+}
+
+const buildSeasonLeaderboard = (entries, seasonKey) => {
+  const seasonEntries = entries.filter((entry) => isEntryInSeason(entry, seasonKey))
+  const rankedSeasonEntries = sortLeaderboardEntries(seasonEntries, 'lap_time', 'asc')
+  const aggregates = new Map()
+
+  rankedSeasonEntries.forEach((entry) => {
+    const key = normalizeDriverName(entry.driver_name)
+    const existing = aggregates.get(key) || {
+      driverName: entry.driver_name,
+      points: 0,
+      lapsCount: 0,
+      wins: 0,
+      podiums: 0,
+      topTenCount: 0,
+      bestLapMs: Number.MAX_SAFE_INTEGER,
+    }
+
+    const rank = Number(entry.rank || 999)
+    existing.points += getEntryPoints(entry)
+    existing.lapsCount += 1
+    if (rank === 1) existing.wins += 1
+    if (rank <= 3) existing.podiums += 1
+    if (rank <= 10) existing.topTenCount += 1
+    existing.bestLapMs = Math.min(existing.bestLapMs, Number(entry.lap_time_ms || Number.MAX_SAFE_INTEGER))
+
+    aggregates.set(key, existing)
+  })
+
+  return [...aggregates.values()]
+    .sort((left, right) => {
+      if (right.points !== left.points) return right.points - left.points
+      if (right.wins !== left.wins) return right.wins - left.wins
+      return left.bestLapMs - right.bestLapMs
+    })
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+      level: getLevelForPoints(entry.points),
+    }))
 }
 
 const getEventChanges = (previousEvents, latestEvents) => {
@@ -335,20 +552,47 @@ client.once('clientReady', () => {
 client.on('interactionCreate', async (interaction) => {
   if (interaction.isAutocomplete()) {
     try {
-      if (interaction.commandName !== 'leaderboard') {
-        await interaction.respond([])
+      const focused = interaction.options.getFocused(true)
+      const commandOptionTypeMap = {
+        leaderboard: {
+          game: 'games',
+          track: 'tracks',
+          car: 'cars',
+          event_id: 'events',
+        },
+        season_leaderboard: {
+          game: 'games',
+          track: 'tracks',
+          car: 'cars',
+        },
+        profile: {
+          game: 'games',
+        },
+        queue_join: {
+          game: 'games',
+        },
+        queue_list: {
+          game: 'games',
+        },
+        queue_status: {
+          game: 'games',
+        },
+      }
+
+      if (interaction.commandName === 'profile' && focused.name === 'driver_name') {
+        const game = interaction.options.getString('game')
+        const response = await fetchLeaderboard({ limit: 100, game })
+        const query = String(focused.value || '').toLowerCase()
+        const names = [...new Set(response.leaderboard.map((entry) => entry.driver_name).filter(Boolean))]
+          .filter((name) => name.toLowerCase().includes(query))
+          .slice(0, 25)
+          .map((name) => ({ name, value: name }))
+
+        await interaction.respond(names)
         return
       }
 
-      const focused = interaction.options.getFocused(true)
-      const optionTypeByName = {
-        game: 'games',
-        track: 'tracks',
-        car: 'cars',
-        event_id: 'events',
-      }
-
-      const mappedType = optionTypeByName[focused.name]
+      const mappedType = commandOptionTypeMap[interaction.commandName]?.[focused.name]
       if (!mappedType) {
         await interaction.respond([])
         return
@@ -360,7 +604,25 @@ client.on('interactionCreate', async (interaction) => {
       return
     } catch (error) {
       console.error('Autocomplete failed:', error)
-      await interaction.respond([])
+      const alreadyAcknowledged =
+        Boolean(interaction.responded) ||
+        (typeof error === 'object' && error !== null && 'code' in error && Number(error.code) === 40060)
+
+      if (!alreadyAcknowledged) {
+        try {
+          await interaction.respond([])
+        } catch (respondError) {
+          const isDuplicateAck =
+            typeof respondError === 'object' &&
+            respondError !== null &&
+            'code' in respondError &&
+            Number(respondError.code) === 40060
+
+          if (!isDuplicateAck) {
+            console.error('Autocomplete fallback response failed:', respondError)
+          }
+        }
+      }
       return
     }
   }
@@ -464,6 +726,335 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       await interaction.editReply({ embeds: [embed] })
+      return
+    }
+
+    if (interaction.commandName === 'profile') {
+      await interaction.deferReply()
+
+      const driverName = interaction.options.getString('driver_name', true)
+      const game = interaction.options.getString('game')
+      const response = await fetchLeaderboard({
+        limit: 100,
+        game,
+      })
+
+      const rankedEntries = sortLeaderboardEntries(response.leaderboard, 'lap_time', 'asc')
+      const profile = buildDriverProfile(rankedEntries, driverName)
+
+      if (!profile) {
+        await interaction.editReply(`No approved laps found for **${driverName}** yet.`)
+        return
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle(`Driver Profile - ${profile.displayName}`)
+        .setColor(0x22c55e)
+        .setURL(siteUrl)
+        .setTimestamp(new Date())
+        .setDescription(`Level **${profile.level}** • **${profile.points}** pts`)
+
+      embed.addFields(
+        {
+          name: 'Performance',
+          value: `Laps: **${profile.lapsCount}**\nWins: **${profile.wins}**\nPodiums: **${profile.podiums}**\nTop 10: **${profile.topTenCount}**`,
+          inline: true,
+        },
+        {
+          name: 'Stats',
+          value: `Best Lap: **${formatMsDuration(profile.bestLapMs)}**\nTotal Lap Time: **${formatMsDuration(profile.totalLapMs)}**\nTracks: **${profile.uniqueTracksCount}**`,
+          inline: true,
+        },
+        {
+          name: 'Achievements',
+          value: profile.achievements.length > 0 ? profile.achievements.join(' • ') : 'No achievements yet',
+          inline: false,
+        }
+      )
+
+      if (game) {
+        embed.setFooter({ text: `Filtered by game: ${game}` })
+      }
+
+      await interaction.editReply({ embeds: [embed] })
+      return
+    }
+
+    if (interaction.commandName === 'season_leaderboard') {
+      await interaction.deferReply()
+
+      const game = interaction.options.getString('game')
+      const track = interaction.options.getString('track')
+      const car = interaction.options.getString('car')
+      const limit = interaction.options.getInteger('limit') || 5
+      const seasonKey = getCurrentSeasonKey()
+
+      const response = await fetchLeaderboard({
+        limit: 100,
+        game,
+        track,
+        car,
+      })
+
+      const seasonLeaderboard = buildSeasonLeaderboard(response.leaderboard, seasonKey).slice(0, limit)
+
+      if (seasonLeaderboard.length === 0) {
+        await interaction.editReply(`No approved laps found for season **${seasonKey}** with these filters.`)
+        return
+      }
+
+      const lines = seasonLeaderboard.map(
+        (entry) =>
+          `#${entry.rank} - **${entry.driverName}** • ${entry.points} pts • L${entry.level} • ${entry.lapsCount} laps • ${entry.wins} wins`
+      )
+
+      const embed = new EmbedBuilder()
+        .setTitle(`Season Leaderboard - ${seasonKey}`)
+        .setColor(0xf59e0b)
+        .setURL(siteUrl)
+        .setDescription(lines.join('\n'))
+        .setTimestamp(new Date())
+
+      const filterBits = [
+        game ? `Game: ${game}` : null,
+        track ? `Track: ${track}` : null,
+        car ? `Car: ${car}` : null,
+      ].filter(Boolean)
+
+      if (filterBits.length > 0) {
+        embed.addFields({
+          name: 'Filters',
+          value: filterBits.join(' | '),
+          inline: false,
+        })
+      }
+
+      await interaction.editReply({ embeds: [embed] })
+      return
+    }
+
+    if (interaction.commandName === 'queue_join') {
+      await interaction.deferReply()
+
+      const game = interaction.options.getString('game', true)
+      const minutes = interaction.options.getInteger('minutes') || defaultSessionMinutes
+      const eta = interaction.options.getString('eta') || null
+
+      const queueState = await loadQueueState()
+      const now = new Date().toISOString()
+      const existingWaitingIndex = queueState.waiting.findIndex((entry) => entry.userId === interaction.user.id)
+      const existingActiveIndex = queueState.active.findIndex((entry) => entry.userId === interaction.user.id)
+
+      const nextEntry = {
+        userId: interaction.user.id,
+        displayName: interaction.user.globalName || interaction.user.username,
+        game,
+        minutes,
+        eta,
+        updatedAt: now,
+      }
+
+      if (existingWaitingIndex >= 0) {
+        queueState.waiting[existingWaitingIndex] = nextEntry
+      } else if (existingActiveIndex >= 0) {
+        queueState.active[existingActiveIndex] = {
+          ...queueState.active[existingActiveIndex],
+          ...nextEntry,
+          startedAt: queueState.active[existingActiveIndex].startedAt,
+        }
+      } else {
+        queueState.waiting.push(nextEntry)
+      }
+
+      await saveQueueState(queueState)
+
+      const position = queueState.waiting.findIndex((entry) => entry.userId === interaction.user.id)
+      const queueAhead = position >= 0 ? position : 0
+      const avgMinutes = getAverageSessionMinutes(queueState.waiting)
+      const estimatedWait = estimateQueueWait(queueAhead, avgMinutes)
+
+      const embed = new EmbedBuilder()
+        .setTitle('Simulator Queue Updated')
+        .setColor(0x38bdf8)
+        .setDescription(
+          `You're in the queue.\nGame: **${game}**\nSession: **${minutes}m**${eta ? `\nETA: **${eta}**` : ''}\nPosition: **${queueAhead + 1}**${
+            queueAhead > 0 ? `\nEstimated Wait: **~${estimatedWait}m**` : '\nEstimated Wait: **Up next**'
+          }`
+        )
+        .setTimestamp(new Date())
+
+      await interaction.editReply({ embeds: [embed] })
+      return
+    }
+
+    if (interaction.commandName === 'queue_leave') {
+      await interaction.deferReply({ ephemeral: true })
+
+      const queueState = await loadQueueState()
+      const waitingNext = queueState.waiting.filter((entry) => entry.userId !== interaction.user.id)
+      const activeNext = queueState.active.filter((entry) => entry.userId !== interaction.user.id)
+
+      if (waitingNext.length === queueState.waiting.length && activeNext.length === queueState.active.length) {
+        await interaction.editReply('You are not currently in the simulator queue.')
+        return
+      }
+
+      await saveQueueState({ waiting: waitingNext, active: activeNext })
+      await interaction.editReply('You have been removed from the simulator queue.')
+      return
+    }
+
+    if (interaction.commandName === 'queue_list') {
+      await interaction.deferReply()
+
+      const game = interaction.options.getString('game')
+      const queueState = await loadQueueState()
+      const waitingFiltered = game ? queueState.waiting.filter((entry) => entry.game === game) : queueState.waiting
+      const activeFiltered = game ? queueState.active.filter((entry) => entry.game === game) : queueState.active
+
+      if (waitingFiltered.length === 0 && activeFiltered.length === 0) {
+        await interaction.editReply(game ? `No queue activity for **${game}** right now.` : 'No queue activity right now.')
+        return
+      }
+
+      const waitingSorted = [...waitingFiltered].sort((a, b) => String(a.updatedAt).localeCompare(String(b.updatedAt)))
+      const activeSorted = [...activeFiltered].sort((a, b) => String(a.startedAt || a.updatedAt).localeCompare(String(b.startedAt || b.updatedAt)))
+      const waitingLines = waitingSorted.slice(0, 20).map((entry, index) => formatQueueEntry(entry, index))
+      const activeLines = activeSorted
+        .slice(0, 10)
+        .map((entry, index) => `${index + 1}. **${entry.displayName}** • ${entry.game} • ${entry.minutes || defaultSessionMinutes}m`)
+
+      const embed = new EmbedBuilder()
+        .setTitle(game ? `Simulator Queue • ${game}` : 'Simulator Queue')
+        .setColor(0xa78bfa)
+        .setTimestamp(new Date())
+
+      embed.addFields({
+        name: `Active Rigs (${activeSorted.length}/${simulatorCount})`,
+        value: activeLines.length > 0 ? activeLines.join('\n') : 'No active sessions',
+        inline: false,
+      })
+
+      embed.addFields({
+        name: `Waiting (${waitingSorted.length})`,
+        value: waitingLines.length > 0 ? waitingLines.join('\n') : 'No one waiting',
+        inline: false,
+      })
+
+      await interaction.editReply({ embeds: [embed] })
+      return
+    }
+
+    if (interaction.commandName === 'queue_next') {
+      await interaction.deferReply()
+
+      if (!isQueueStaff(interaction)) {
+        await interaction.editReply('Only staff can run this command.')
+        return
+      }
+
+      const queueState = await loadQueueState()
+
+      if (queueState.active.length >= simulatorCount) {
+        await interaction.editReply(
+          `All rigs are currently occupied (${queueState.active.length}/${simulatorCount}). Run /queue_done first.`
+        )
+        return
+      }
+
+      if (queueState.waiting.length === 0) {
+        await interaction.editReply('No one is waiting in queue right now.')
+        return
+      }
+
+      const nextEntry = queueState.waiting.shift()
+      const activeEntry = {
+        ...nextEntry,
+        startedAt: new Date().toISOString(),
+      }
+      queueState.active.push(activeEntry)
+      await saveQueueState(queueState)
+
+      await interaction.editReply(
+        `Next up: <@${activeEntry.userId}> • **${activeEntry.game}** • **${activeEntry.minutes || defaultSessionMinutes}m** session.\nActive rigs: ${queueState.active.length}/${simulatorCount}`
+      )
+      return
+    }
+
+    if (interaction.commandName === 'queue_done') {
+      await interaction.deferReply({ ephemeral: true })
+
+      if (!isQueueStaff(interaction)) {
+        await interaction.editReply('Only staff can run this command.')
+        return
+      }
+
+      const selectedUser = interaction.options.getUser('driver')
+      const queueState = await loadQueueState()
+
+      if (queueState.active.length === 0) {
+        await interaction.editReply('There are no active sessions right now.')
+        return
+      }
+
+      let removedEntry = null
+      if (selectedUser) {
+        const index = queueState.active.findIndex((entry) => entry.userId === selectedUser.id)
+        if (index < 0) {
+          await interaction.editReply('That driver is not currently marked as active.')
+          return
+        }
+        removedEntry = queueState.active.splice(index, 1)[0]
+      } else {
+        removedEntry = queueState.active.shift()
+      }
+
+      await saveQueueState(queueState)
+      await interaction.editReply(
+        `Session ended for **${removedEntry.displayName}**. Active rigs: ${queueState.active.length}/${simulatorCount}.`
+      )
+      return
+    }
+
+    if (interaction.commandName === 'queue_status') {
+      await interaction.deferReply()
+
+      const game = interaction.options.getString('game')
+      const queueState = await loadQueueState()
+      const waitingFiltered = game ? queueState.waiting.filter((entry) => entry.game === game) : queueState.waiting
+      const activeFiltered = game ? queueState.active.filter((entry) => entry.game === game) : queueState.active
+      const avgSessionMins = getAverageSessionMinutes(waitingFiltered.length > 0 ? waitingFiltered : queueState.waiting)
+
+      const nextUp = waitingFiltered[0]
+      const forNewJoinEstimate = estimateQueueWait(waitingFiltered.length, avgSessionMins)
+
+      const embed = new EmbedBuilder()
+        .setTitle(game ? `Queue Status • ${game}` : 'Queue Status')
+        .setColor(0x22c55e)
+        .setTimestamp(new Date())
+
+      embed.addFields(
+        {
+          name: 'Capacity',
+          value: `Rigs: **${simulatorCount}**\nActive: **${activeFiltered.length}**\nWaiting: **${waitingFiltered.length}**`,
+          inline: true,
+        },
+        {
+          name: 'Timing',
+          value: `Average Session: **${avgSessionMins}m**\nNew Join Wait: **~${forNewJoinEstimate}m**`,
+          inline: true,
+        },
+        {
+          name: 'Next Up',
+          value: nextUp
+            ? `<@${nextUp.userId}> • ${nextUp.game} • ${nextUp.minutes || defaultSessionMinutes}m${nextUp.eta ? ` • ETA ${nextUp.eta}` : ''}`
+            : 'No one waiting',
+          inline: false,
+        }
+      )
+
+      await interaction.editReply({ embeds: [embed] })
+      return
     }
   } catch (error) {
     const message = `Request failed: ${error instanceof Error ? error.message : 'Unknown error'}`
