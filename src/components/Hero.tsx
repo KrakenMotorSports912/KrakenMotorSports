@@ -56,9 +56,8 @@ export default function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col gap-6 items-center">
-          <Link href="/bookings?from=home" className="btn-primary text-lg px-10 py-4 inline-flex items-center gap-3 hover:scale-105 transition-transform animate-glow">
-            <span className="text-2xl">🗓️</span>
-            <span>BOOK NOW</span>
+          <Link href="/bookings?from=home" className="btn-secondary text-lg px-10 py-4 hover:scale-105 transition-transform animate-glow">
+            BOOK NOW
           </Link>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">

@@ -1,21 +1,102 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+
+const PROFILE_PREFILL_KEY = 'kraken_profile_prefill_v1'
+const BOOKING_PREFILL_KEY = 'kraken_booking_prefill_v1'
+const FOUNDERS_PREFILL_KEY = 'kraken_founders_prefill_v1'
 
 export default function FoundersPassPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
+  const [contact, setContact] = useState('')
   const [discord, setDiscord] = useState('')
   const [reason, setReason] = useState('')
   const [sent, setSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    const hydrateAutofill = async () => {
+      try {
+        const profileRaw = window.localStorage.getItem(PROFILE_PREFILL_KEY)
+        if (profileRaw) {
+          const profile = JSON.parse(profileRaw) as {
+            fullName?: string
+            firstName?: string
+            lastName?: string
+            contact?: string
+            discord?: string
+          }
+
+          const derivedName =
+            String(profile.fullName || '').trim() ||
+            `${String(profile.firstName || '').trim()} ${String(profile.lastName || '').trim()}`.trim()
+
+          setFullName((previous: string) => previous || derivedName)
+          setContact((previous: string) => previous || String(profile.contact || ''))
+          setDiscord((previous: string) => previous || String(profile.discord || ''))
+        }
+
+        const bookingRaw = window.localStorage.getItem(BOOKING_PREFILL_KEY)
+        if (bookingRaw) {
+          const booking = JSON.parse(bookingRaw) as {
+            fullName?: string
+            contact?: string
+            email?: string
+            discord?: string
+          }
+
+          setFullName((previous: string) => previous || String(booking.fullName || ''))
+          setContact((previous: string) => previous || String(booking.contact || booking.email || ''))
+          setDiscord((previous: string) => previous || String(booking.discord || ''))
+        }
+
+        const foundersRaw = window.localStorage.getItem(FOUNDERS_PREFILL_KEY)
+        if (foundersRaw) {
+          const founders = JSON.parse(foundersRaw) as {
+            fullName?: string
+            contact?: string
+            discord?: string
+          }
+
+          setFullName((previous: string) => previous || String(founders.fullName || ''))
+          setContact((previous: string) => previous || String(founders.contact || ''))
+          setDiscord((previous: string) => previous || String(founders.discord || ''))
+        }
+      } catch {
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const user = session?.user
+      if (!user) return
+
+      const fallbackName =
+        String(user.user_metadata?.full_name || '') ||
+        String(user.user_metadata?.display_name || '') ||
+        String(user.user_metadata?.name || '')
+
+      const fallbackDiscord =
+        String(user.user_metadata?.discord_username || '') ||
+        String(user.user_metadata?.preferred_username || '')
+
+      setContact((previous: string) => previous || String(user.email || user.phone || ''))
+      setFullName((previous: string) => previous || fallbackName)
+      setDiscord((previous: string) => previous || fallbackDiscord)
+    }
+
+    hydrateAutofill()
+  }, [supabase])
+
   const resetForm = () => {
     setFullName('')
-    setEmail('')
+    setContact('')
     setDiscord('')
     setReason('')
     setSent(false)
@@ -47,7 +128,7 @@ export default function FoundersPassPage() {
       },
       body: JSON.stringify({
         fullName,
-        email,
+        contact,
         discord,
         reason,
       }),
@@ -56,9 +137,21 @@ export default function FoundersPassPage() {
     const payload = await response.json().catch(() => ({}))
 
     if (response.ok) {
+      try {
+        window.localStorage.setItem(
+          FOUNDERS_PREFILL_KEY,
+          JSON.stringify({
+            fullName: fullName.trim(),
+            contact: contact.trim(),
+            discord: discord.trim(),
+          })
+        )
+      } catch {
+      }
+
       setSent(true)
       setFullName('')
-      setEmail('')
+      setContact('')
       setDiscord('')
       setReason('')
     } else {
@@ -84,10 +177,10 @@ export default function FoundersPassPage() {
           />
           <input
             className="input-field"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            type="text"
+            placeholder="Email or Phone"
+            value={contact}
+            onChange={(event) => setContact(event.target.value)}
             required
           />
           <input

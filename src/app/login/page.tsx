@@ -18,8 +18,11 @@ const hasDiscordIdentity = (user: AuthUser | null) => {
 }
 
 function LoginContent() {
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [signupDiscord, setSignupDiscord] = useState('')
   const [isSignup, setIsSignup] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -85,15 +88,72 @@ function LoginContent() {
     setLoading(true)
     setMessage('')
 
+    const normalizedIdentifier = identifier.trim()
+    const isPhoneIdentifier = /^\+?[0-9][0-9\s()\-]{6,}$/.test(normalizedIdentifier)
+
+    if (!normalizedIdentifier) {
+      setMessage('Please enter an email or phone number.')
+      setLoading(false)
+      return
+    }
+
     if (isSignup) {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const trimmedFirst = firstName.trim()
+      const trimmedLast = lastName.trim()
+      const fullName = `${trimmedFirst} ${trimmedLast}`.trim()
+
+      if (!trimmedFirst || !trimmedLast) {
+        setMessage('Please enter first and last name.')
+        setLoading(false)
+        return
+      }
+
+      const signupPayload = {
+        password,
+        options: {
+          data: {
+            first_name: trimmedFirst,
+            last_name: trimmedLast,
+            full_name: fullName,
+            discord_username: signupDiscord.trim() || null,
+          },
+        },
+      }
+
+      const { error } = await supabase.auth.signUp(
+        isPhoneIdentifier
+          ? { phone: normalizedIdentifier, ...signupPayload }
+          : { email: normalizedIdentifier, ...signupPayload }
+      )
       if (error) {
         setMessage(error.message)
       } else {
-        setMessage('Account created. Check your email to confirm your account, then log in.')
+        try {
+          window.localStorage.setItem(
+            'kraken_profile_prefill_v1',
+            JSON.stringify({
+              firstName: trimmedFirst,
+              lastName: trimmedLast,
+              fullName,
+              discord: signupDiscord.trim(),
+              contact: normalizedIdentifier,
+            })
+          )
+        } catch {
+        }
+
+        setMessage(
+          isPhoneIdentifier
+            ? 'Account created. Check your phone for verification steps, then log in.'
+            : 'Account created. Check your email to confirm your account, then log in.'
+        )
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword(
+        isPhoneIdentifier
+          ? { phone: normalizedIdentifier, password }
+          : { email: normalizedIdentifier, password }
+      )
       if (error) {
         setMessage(error.message)
       } else {
@@ -129,21 +189,61 @@ function LoginContent() {
             ? isDiscordLinked
               ? 'Linked: Discord account connected.'
               : 'Not linked yet: add Discord to connect your racing profile.'
-            : 'Optional: link Discord now or continue with email/password.'}
+            : 'Optional: link Discord now or continue with email or phone/password.'}
         </p>
 
-        <div className="text-center text-sm text-gray-400">or use email/password below</div>
+        <div className="text-center text-sm text-gray-400">or use email or phone/password below</div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {isSignup && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-kraken-cyan font-display tracking-wide mb-2">FIRST NAME</label>
+                  <input
+                    type="text"
+                    required
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
+                    className="input-field"
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-kraken-cyan font-display tracking-wide mb-2">LAST NAME</label>
+                  <input
+                    type="text"
+                    required
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
+                    className="input-field"
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-kraken-cyan font-display tracking-wide mb-2">DISCORD (OPTIONAL)</label>
+                <input
+                  type="text"
+                  value={signupDiscord}
+                  onChange={(event) => setSignupDiscord(event.target.value)}
+                  className="input-field"
+                  placeholder="yourname#1234 or @username"
+                />
+              </div>
+            </>
+          )}
+
           <div>
-            <label className="block text-kraken-cyan font-display tracking-wide mb-2">EMAIL</label>
+            <label className="block text-kraken-cyan font-display tracking-wide mb-2">EMAIL OR PHONE</label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
               className="input-field"
-              placeholder="you@example.com"
+              placeholder="you@example.com or +1 555 123 4567"
             />
           </div>
 

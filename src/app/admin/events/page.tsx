@@ -61,7 +61,7 @@ export default function AdminEventsPage() {
     title: '',
     description: '',
     event_type: 'race',
-    game: FALLBACK_GAMES[0],
+    game: '',
     track: '',
     car_class: '',
     start_date: '',
@@ -81,10 +81,6 @@ export default function AdminEventsPage() {
     const localDefaults = readLocalDefaultOptions()
     if (localDefaults.games.length > 0) {
       setDefaultGames(localDefaults.games)
-      setFormData((previous) => ({
-        ...previous,
-        game: localDefaults.games.includes(previous.game) ? previous.game : localDefaults.games[0],
-      }))
     }
     if (localDefaults.tracks.length > 0) {
       setDefaultTracks(localDefaults.tracks)
@@ -109,10 +105,6 @@ export default function AdminEventsPage() {
 
     if (games.length > 0) {
       setDefaultGames(games)
-      setFormData((previous) => ({
-        ...previous,
-        game: games.includes(previous.game) ? previous.game : games[0],
-      }))
     }
 
     if (tracks.length > 0) {
@@ -296,7 +288,7 @@ export default function AdminEventsPage() {
       title: '',
       description: '',
       event_type: 'race',
-      game: defaultGames[0] || FALLBACK_GAMES[0],
+      game: '',
       track: '',
       car_class: '',
       start_date: '',
@@ -396,13 +388,13 @@ export default function AdminEventsPage() {
               </div>
 
               <div>
-                <label className="block text-kraken-cyan mb-2 font-display">GAME *</label>
+                <label className="block text-kraken-cyan mb-2 font-display">GAME</label>
                 <select
-                  required
                   value={formData.game}
                   onChange={(e) => setFormData({ ...formData, game: e.target.value })}
                   className="input-field"
                 >
+                  <option value="">Optional</option>
                   {defaultGames.map((game) => (
                     <option key={game} value={game}>
                       {game.replace(/_/g, ' ').toUpperCase()}
@@ -412,15 +404,14 @@ export default function AdminEventsPage() {
               </div>
 
               <div>
-                <label className="block text-kraken-cyan mb-2 font-display">TRACK *</label>
+                <label className="block text-kraken-cyan mb-2 font-display">TRACK</label>
                 <input
                   type="text"
                   list="event-track-defaults"
-                  required
                   value={formData.track}
                   onChange={(e) => setFormData({ ...formData, track: e.target.value })}
                   className="input-field"
-                  placeholder="Spa-Francorchamps"
+                  placeholder="Optional"
                 />
                 <datalist id="event-track-defaults">
                   {defaultTracks.map((track) => (

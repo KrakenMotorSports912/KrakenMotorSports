@@ -294,7 +294,7 @@ export default function AdminFoundersPage() {
                   <p className="text-white">{selectedPass.full_name}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 mb-1">Email</p>
+                  <p className="text-gray-400 mb-1">Contact</p>
                   <p className="text-white">{selectedPass.email}</p>
                 </div>
                 <div>

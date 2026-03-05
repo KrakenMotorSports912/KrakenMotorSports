@@ -20,31 +20,38 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null)
 
     const fullName = (body?.fullName || '').trim()
-    const email = (body?.email || '').trim().toLowerCase()
+    const rawContact = (body?.contact || body?.email || '').trim()
     const discord = (body?.discord || '').trim()
     const reason = (body?.reason || '').trim()
 
-    if (!fullName || !email) {
-      return NextResponse.json({ error: 'Full name and email are required.' }, { status: 400 })
+    if (!fullName || !rawContact) {
+      return NextResponse.json({ error: 'Full name and email or phone are required.' }, { status: 400 })
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 })
+    const phoneRegex = /^\+?[0-9][0-9\s()\-]{6,}$/
+    const isEmail = emailRegex.test(rawContact)
+    const isPhone = phoneRegex.test(rawContact)
+    if (!isEmail && !isPhone) {
+      return NextResponse.json({ error: 'Please enter a valid email or phone number.' }, { status: 400 })
     }
+
+    const normalizedContact = isEmail
+      ? rawContact.toLowerCase()
+      : rawContact.replace(/[\s()\-]/g, '')
 
     const supabase = getServiceClient()
 
     const { data: existingByEmail } = await supabase
       .from('founders_passes')
       .select('id,status')
-      .eq('email', email)
+      .eq('email', normalizedContact)
       .neq('status', 'cancelled')
       .limit(1)
       .maybeSingle()
 
     if (existingByEmail) {
-      return NextResponse.json({ error: 'This email is already on the founders list.' }, { status: 409 })
+      return NextResponse.json({ error: 'This contact is already on the founders list.' }, { status: 409 })
     }
 
     const { data: maxPassData, error: maxPassError } = await supabase
@@ -74,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     const insertData: FoundersPassInsert = {
       pass_number: nextPassNumber,
-      email,
+      email: normalizedContact,
       full_name: fullName,
       payment_method: 'other',
       amount_paid: 0,

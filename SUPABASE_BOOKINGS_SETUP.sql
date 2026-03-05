@@ -30,11 +30,15 @@ create table if not exists public.booking_reservations (
   email text not null,
   discord text null,
   notes text null,
+  is_paid boolean not null default false,
   status text not null default 'pending' check (status in ('pending', 'confirmed', 'cancelled', 'completed')),
   cancel_reason text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.booking_reservations
+  add column if not exists is_paid boolean not null default false;
 
 create index if not exists idx_booking_slots_start_time on public.booking_slots(start_time);
 create index if not exists idx_booking_slots_is_open on public.booking_slots(is_open);

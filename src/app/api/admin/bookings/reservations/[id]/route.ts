@@ -10,6 +10,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   const { id } = await context.params
   const body = await request.json().catch(() => null)
   const nextStatus = String(body?.status || '').trim()
+  const nextIsPaid = typeof body?.is_paid === 'boolean' ? body.is_paid : null
   const cancelReason = String(body?.cancel_reason || '').trim()
 
   if (!['pending', 'confirmed', 'cancelled', 'completed'].includes(nextStatus)) {
@@ -30,6 +31,14 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     status: nextStatus,
     cancel_reason: nextStatus === 'cancelled' ? cancelReason || null : null,
     updated_at: new Date().toISOString(),
+  }
+
+  if (nextIsPaid !== null) {
+    updates.is_paid = nextIsPaid
+  } else if (nextStatus === 'completed') {
+    updates.is_paid = true
+  } else if (nextStatus === 'cancelled') {
+    updates.is_paid = false
   }
 
   const { data, error } = await auth.serviceClient

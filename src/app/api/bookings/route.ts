@@ -1,17 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient, isMissingBookingTables } from '@/lib/serverBooking'
 
+const isPhoneContact = (value: string) => /^\+?[0-9][0-9\s()\-]{6,}$/.test(value)
+
+const queueConfirmationNotification = async (params: {
+  reservationId: string
+  fullName: string
+  contact: string
+  slotStartTime: string
+}) => {
+  const channel = isPhoneContact(params.contact) ? 'sms' : 'email'
+
+  // Future integration point:
+  // - send email via provider (SendGrid/Postmark/etc)
+  // - send sms via provider (Twilio/etc)
+  // - optionally persist to a notification_jobs table for retries
+  console.log('[booking-notification-placeholder]', {
+    reservationId: params.reservationId,
+    channel,
+    contact: params.contact,
+    fullName: params.fullName,
+    slotStartTime: params.slotStartTime,
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null)
     const slotId = (body?.slotId || '').trim()
     const fullName = (body?.fullName || '').trim()
-    const email = (body?.email || '').trim()
+    const contact = (body?.contact || body?.email || '').trim()
     const discord = (body?.discord || '').trim()
     const notes = (body?.notes || '').trim()
 
-    if (!slotId || !fullName || !email) {
-      return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
+    if (!slotId || !fullName || !contact) {
+      return NextResponse.json({ error: 'Missing required fields (name and email or phone).' }, { status: 400 })
     }
 
     const serviceClient = getServiceClient()
@@ -55,9 +78,10 @@ export async function POST(request: NextRequest) {
       .insert({
         slot_id: slotId,
         full_name: fullName,
-        email,
+        email: contact,
         discord: discord || null,
         notes: notes || null,
+        is_paid: false,
         status: 'pending',
       })
       .select('id')
@@ -76,7 +100,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: countError.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, id: inserted.id, status: 'pending' })
+    await queueConfirmationNotification({
+      reservationId: inserted.id,
+      fullName,
+      contact,
+      slotStartTime: slot.start_time,
+    })
+
+    return NextResponse.json({
+      success: true,
+      id: inserted.id,
+      status: 'pending',
+      next: {
+        paymentReady: false,
+        paymentPath: '/payment',
+      },
+    })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unexpected server error' },

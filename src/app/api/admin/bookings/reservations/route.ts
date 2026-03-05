@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   let query = auth.serviceClient
     .from('booking_reservations')
-    .select('id,slot_id,full_name,email,discord,notes,status,cancel_reason,created_at,updated_at,booking_slots(start_time,end_time,title,price_cents,currency,capacity,booked_count)')
+    .select('id,slot_id,full_name,email,discord,notes,is_paid,status,cancel_reason,created_at,updated_at,booking_slots(start_time,end_time,title,price_cents,currency,capacity,booked_count)')
     .order('created_at', { ascending: false })
     .limit(500)
 
@@ -20,7 +20,26 @@ export async function GET(request: NextRequest) {
     query = query.eq('status', status)
   }
 
-  const { data, error } = await query
+  let { data, error } = await query
+
+  if (error && error.message.includes("Could not find the 'is_paid' column")) {
+    let fallbackQuery = auth.serviceClient
+      .from('booking_reservations')
+      .select('id,slot_id,full_name,email,discord,notes,status,cancel_reason,created_at,updated_at,booking_slots(start_time,end_time,title,price_cents,currency,capacity,booked_count)')
+      .order('created_at', { ascending: false })
+      .limit(500)
+
+    if (status !== 'all') {
+      fallbackQuery = fallbackQuery.eq('status', status)
+    }
+
+    const fallbackResult = await fallbackQuery
+    data = (fallbackResult.data || []).map((item: any) => ({
+      ...item,
+      is_paid: item.status === 'completed',
+    }))
+    error = fallbackResult.error
+  }
 
   if (error) {
     if (isMissingBookingTables(error.message)) {

@@ -22,6 +22,7 @@ type Reservation = {
   email: string
   discord: string | null
   notes: string | null
+  is_paid?: boolean
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
   cancel_reason: string | null
   created_at: string
@@ -36,7 +37,31 @@ type Reservation = {
   } | null
 }
 
-const toInputDateValue = (date: Date) => date.toISOString().slice(0, 10)
+const toInputDateValue = (date: Date) => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
+}
+
+const expandEventDateRange = (startDateRaw?: string, endDateRaw?: string) => {
+  const startKey = String(startDateRaw || '').slice(0, 10)
+  const endKey = String(endDateRaw || startDateRaw || '').slice(0, 10)
+  if (!startKey) return [] as string[]
+
+  const start = new Date(`${startKey}T00:00:00.000Z`)
+  const end = new Date(`${endKey}T00:00:00.000Z`)
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return [startKey]
+  }
+
+  const keys: string[] = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    keys.push(cursor.toISOString().slice(0, 10))
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  }
+  return keys
+}
 
 export default function AdminBookingsPage() {
   const supabase = createClient()
@@ -47,11 +72,16 @@ export default function AdminBookingsPage() {
   const [slots, setSlots] = useState<Slot[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [selectedDate, setSelectedDate] = useState(toInputDateValue(new Date()))
+  const [calendarMonth, setCalendarMonth] = useState(toInputDateValue(new Date()).slice(0, 7))
   const [slotDayMode, setSlotDayMode] = useState<'selected' | 'all'>('selected')
   const [slotTimeFrom, setSlotTimeFrom] = useState('')
   const [slotTimeTo, setSlotTimeTo] = useState('')
   const [slotSortOrder, setSlotSortOrder] = useState<'asc' | 'desc'>('asc')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled' | 'completed'>('all')
+  const [eventDateKeys, setEventDateKeys] = useState<string[]>([])
+  const [calendarDayStats, setCalendarDayStats] = useState<Record<string, { totalSlots: number; openSlots: number }>>({})
+  const [deletingSlotIds, setDeletingSlotIds] = useState<string[]>([])
+  const [updatingReservationIds, setUpdatingReservationIds] = useState<string[]>([])
   const [settings, setSettings] = useState({
     openHour: '10',
     closeHour: '22',
@@ -84,6 +114,45 @@ export default function AdminBookingsPage() {
 
     init()
   }, [])
+
+  useEffect(() => {
+    const fetchEventDates = async () => {
+      const response = await fetch('/api/public/events?limit=50')
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) return
+
+      const nextDates = Array.from(
+        new Set(
+          ((payload.events || []) as Array<{ start_date?: string; end_date?: string }>)
+            .flatMap((eventItem) => expandEventDateRange(eventItem.start_date, eventItem.end_date))
+        )
+      )
+
+      setEventDateKeys(nextDates)
+    }
+
+    fetchEventDates()
+  }, [])
+
+  useEffect(() => {
+    setCalendarMonth(selectedDate.slice(0, 7))
+  }, [selectedDate])
+
+  useEffect(() => {
+    const fetchCalendarAvailability = async () => {
+      const response = await fetch(`/api/public/booking-slots?month=${encodeURIComponent(calendarMonth)}`)
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setCalendarDayStats({})
+        return
+      }
+
+      const days = (payload.calendarDays || {}) as Record<string, { totalSlots: number; openSlots: number }>
+      setCalendarDayStats(days)
+    }
+
+    fetchCalendarAvailability()
+  }, [calendarMonth])
 
   const fetchSettings = async (token = accessToken) => {
     const response = await fetch('/api/admin/bookings/settings', {
@@ -216,8 +285,7 @@ export default function AdminBookingsPage() {
   }
 
   const handleDeleteSlot = async (slot: Slot) => {
-    const confirmed = confirm('Delete this slot? You can only delete slots without active reservations.')
-    if (!confirmed) return
+    setDeletingSlotIds((prev) => Array.from(new Set([...prev, slot.id])))
 
     const response = await fetch(`/api/admin/bookings/slots/${slot.id}`, {
       method: 'DELETE',
@@ -229,13 +297,19 @@ export default function AdminBookingsPage() {
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) {
       setError(payload.error || 'Unable to delete slot.')
+      setDeletingSlotIds((prev) => prev.filter((id) => id !== slot.id))
       return
     }
 
+    await new Promise((resolve) => setTimeout(resolve, 220))
+    setSlots((prev) => prev.filter((item) => item.id !== slot.id))
+    setDeletingSlotIds((prev) => prev.filter((id) => id !== slot.id))
     fetchSlots(accessToken, selectedDate, slotDayMode)
   }
 
   const updateReservationStatus = async (reservationId: string, status: Reservation['status']) => {
+    setUpdatingReservationIds((prev) => Array.from(new Set([...prev, reservationId])))
+
     const response = await fetch(`/api/admin/bookings/reservations/${reservationId}`, {
       method: 'PATCH',
       headers: {
@@ -248,11 +322,13 @@ export default function AdminBookingsPage() {
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) {
       setError(payload.error || 'Unable to update reservation status.')
+      setUpdatingReservationIds((prev) => prev.filter((id) => id !== reservationId))
       return
     }
 
     fetchReservations(accessToken, statusFilter)
     fetchSlots(accessToken, selectedDate, slotDayMode)
+    setUpdatingReservationIds((prev) => prev.filter((id) => id !== reservationId))
   }
 
   const reservationsSummary = useMemo(() => {
@@ -300,6 +376,46 @@ export default function AdminBookingsPage() {
     })
   }, [filteredSlots, slotSortOrder])
 
+  const monthCalendar = useMemo(() => {
+    const [yearRaw, monthRaw] = calendarMonth.split('-')
+    const year = Number(yearRaw)
+    const month = Number(monthRaw)
+    if (!Number.isFinite(year) || !Number.isFinite(month)) {
+      return { monthLabel: '', cells: [] as Array<{ key: string; dayLabel: string; inMonth: boolean }> }
+    }
+
+    const firstDay = new Date(year, month - 1, 1)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const firstWeekday = firstDay.getDay()
+    const cells: Array<{ key: string; dayLabel: string; inMonth: boolean }> = []
+
+    for (let i = 0; i < firstWeekday; i += 1) {
+      cells.push({ key: `empty-${i}`, dayLabel: '', inMonth: false })
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push({
+        key: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        dayLabel: String(day),
+        inMonth: true,
+      })
+    }
+
+    return {
+      monthLabel: firstDay.toLocaleDateString([], { month: 'long', year: 'numeric' }),
+      cells,
+    }
+  }, [calendarMonth])
+
+  const shiftMonth = (delta: number) => {
+    const [yearRaw, monthRaw] = calendarMonth.split('-')
+    const year = Number(yearRaw)
+    const month = Number(monthRaw)
+    const next = new Date(year, month - 1 + delta, 1)
+    const nextMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`
+    setCalendarMonth(nextMonth)
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -317,7 +433,7 @@ export default function AdminBookingsPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="card"><p className="text-gray-400 text-sm">PENDING</p><p className="text-3xl font-display text-kraken-cyan">{reservationsSummary.pending}</p></div>
-        <div className="card"><p className="text-gray-400 text-sm">CONFIRMED</p><p className="text-3xl font-display text-kraken-cyan">{reservationsSummary.confirmed}</p></div>
+        <div className="card"><p className="text-gray-400 text-sm">ACCEPTED</p><p className="text-3xl font-display text-kraken-cyan">{reservationsSummary.confirmed}</p></div>
         <div className="card"><p className="text-gray-400 text-sm">SLOTS ({selectedDate})</p><p className="text-3xl font-display text-kraken-cyan">{slots.length}</p></div>
       </div>
 
@@ -354,6 +470,77 @@ export default function AdminBookingsPage() {
 
       <form onSubmit={handleGenerateSlots} className="card space-y-4">
         <h3 className="text-xl font-display text-kraken-cyan">GENERATE DAILY SLOTS</h3>
+        <div>
+          <p className="text-xs text-gray-400 mb-2">QUICK CALENDAR</p>
+          <div className="flex items-center justify-between mb-2">
+            <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => shiftMonth(-1)}>
+              PREV
+            </button>
+            <p className="text-sm text-gray-300">{monthCalendar.monthLabel}</p>
+            <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => shiftMonth(1)}>
+              NEXT
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-2 text-[11px] text-gray-500 mb-2">
+            {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((name) => (
+              <p key={name} className="text-center">{name}</p>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {monthCalendar.cells.map((day) => {
+              if (!day.inMonth) {
+                return <div key={day.key} className="h-10" />
+              }
+
+              const hasEvent = eventDateKeys.includes(day.key)
+              const dayStats = calendarDayStats[day.key]
+              const totalSlots = Number(dayStats?.totalSlots || 0)
+              const openSlots = Number(dayStats?.openSlots || 0)
+              const isFull = totalSlots > 0 && openSlots === 0
+              const isPartiallyFilled = totalSlots > 0 && openSlots > 0 && openSlots < totalSlots
+              const isSelected = selectedDate === day.key
+              const baseClass = 'h-10 border-2 text-xs sm:text-sm font-display transition-colors'
+
+              let dayClass = 'border-gray-700 text-gray-300'
+              let numberClass = 'text-gray-300'
+
+              if (hasEvent) {
+                dayClass = 'border-kraken-pink bg-kraken-card ring-1 ring-kraken-pink/70'
+              } else if (isFull) {
+                dayClass = 'border-red-500 bg-kraken-card ring-1 ring-red-500/60'
+              } else if (totalSlots > 0) {
+                dayClass = 'border-kraken-cyan bg-kraken-card ring-1 ring-kraken-cyan/60'
+              }
+
+              if (isFull) {
+                numberClass = 'text-red-400'
+              } else if (isPartiallyFilled) {
+                numberClass = 'text-yellow-400'
+              } else if (hasEvent) {
+                numberClass = 'text-kraken-pink'
+              } else if (totalSlots > 0) {
+                numberClass = 'text-kraken-cyan'
+              }
+
+              if (isSelected) {
+                dayClass = 'border-kraken-cyan bg-kraken-cyan text-black'
+                numberClass = 'text-black'
+              }
+
+              return (
+                <button
+                  key={day.key}
+                  type="button"
+                  onClick={() => setSelectedDate(day.key)}
+                  className={`${baseClass} ${dayClass} hover:border-kraken-cyan/60`}
+                >
+                  <span className={numberClass}>{day.dayLabel}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">Number color: cyan = open, yellow = partially filled, red = full, pink/purple = event day.</p>
+        </div>
         <label className="space-y-1 block max-w-xs">
           <span className="text-xs text-gray-400">SLOT DATE</span>
           <input type="date" className="input-field" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
@@ -404,18 +591,26 @@ export default function AdminBookingsPage() {
           <p className="text-gray-400">No slots created for this date yet.</p>
         ) : (
           <div className="space-y-2">
-            {sortedSlots.map((slot) => (
-              <div key={slot.id} className="border border-gray-700 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {sortedSlots.map((slot) => {
+              const isDeleting = deletingSlotIds.includes(slot.id)
+              return (
+              <div
+                key={slot.id}
+                className={`border border-gray-700 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-all duration-300 ${
+                  isDeleting ? 'opacity-30 scale-[0.98] blur-[1px]' : ''
+                }`}
+              >
                 <div>
                   <p className="font-display text-kraken-cyan">{new Date(slot.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - {new Date(slot.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
                   <p className="text-sm text-gray-300">{slot.title || 'Simulator Session'} • {slot.booked_count}/{slot.capacity} booked • {(slot.price_cents / 100).toFixed(2)} {slot.currency}</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <button className="btn-secondary" onClick={() => handleToggleSlotOpen(slot)}>{slot.is_open ? 'CLOSE SLOT' : 'OPEN SLOT'}</button>
-                  <button className="btn-secondary" onClick={() => handleDeleteSlot(slot)}>DELETE</button>
+                  <button className="btn-secondary" disabled={isDeleting} onClick={() => handleToggleSlotOpen(slot)}>{slot.is_open ? 'CLOSE SLOT' : 'OPEN SLOT'}</button>
+                  <button className="btn-secondary" disabled={isDeleting} onClick={() => handleDeleteSlot(slot)}>{isDeleting ? 'DELETING…' : 'DELETE'}</button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -428,7 +623,7 @@ export default function AdminBookingsPage() {
             <select className="input-field max-w-[220px]" value={statusFilter} onChange={(event) => { const next = event.target.value as typeof statusFilter; setStatusFilter(next); fetchReservations(accessToken, next) }}>
               <option value="all">All statuses</option>
               <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
+              <option value="confirmed">Accepted</option>
               <option value="cancelled">Cancelled</option>
               <option value="completed">Completed</option>
             </select>
@@ -447,11 +642,15 @@ export default function AdminBookingsPage() {
                   <th className="py-3 px-4 text-left">Slot</th>
                   <th className="py-3 px-4 text-left">Status</th>
                   <th className="py-3 px-4 text-left">Actions</th>
+                  <th className="py-3 px-4 text-left">Paid</th>
                 </tr>
               </thead>
               <tbody>
-                {reservations.map((reservation) => (
-                  <tr key={reservation.id} className="table-row">
+                {reservations.map((reservation) => {
+                  const isUpdating = updatingReservationIds.includes(reservation.id)
+                  const isPaid = Boolean(reservation.is_paid)
+                  return (
+                  <tr key={reservation.id} className={`table-row transition-all duration-300 ${isUpdating ? 'opacity-50' : ''}`}>
                     <td className="py-3 px-4">{reservation.full_name}</td>
                     <td className="py-3 px-4 text-sm text-gray-300">{reservation.email}{reservation.discord ? ` • ${reservation.discord}` : ''}</td>
                     <td className="py-3 px-4 text-sm text-gray-300">
@@ -462,13 +661,17 @@ export default function AdminBookingsPage() {
                     <td className="py-3 px-4">{reservation.status.toUpperCase()}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
-                        <button className="btn-secondary text-xs py-1 px-2" onClick={() => updateReservationStatus(reservation.id, 'confirmed')}>CONFIRM</button>
-                        <button className="btn-secondary text-xs py-1 px-2" onClick={() => updateReservationStatus(reservation.id, 'completed')}>COMPLETE</button>
-                        <button className="btn-secondary text-xs py-1 px-2" onClick={() => updateReservationStatus(reservation.id, 'cancelled')}>CANCEL</button>
+                        <button className="btn-secondary text-xs py-1 px-2 disabled:opacity-50" disabled={isUpdating} onClick={() => updateReservationStatus(reservation.id, 'confirmed')}>{isUpdating ? 'UPDATING…' : 'ACCEPT'}</button>
+                        <button className="btn-secondary text-xs py-1 px-2 disabled:opacity-50" disabled={isUpdating} onClick={() => updateReservationStatus(reservation.id, 'completed')}>{isUpdating ? 'UPDATING…' : 'COMPLETE'}</button>
+                        <button className="btn-secondary text-xs py-1 px-2 disabled:opacity-50" disabled={isUpdating} onClick={() => updateReservationStatus(reservation.id, 'cancelled')}>{isUpdating ? 'UPDATING…' : 'CANCEL'}</button>
                       </div>
                     </td>
+                    <td className="py-3 px-4 text-xl">
+                      <span className={isPaid ? 'text-green-400' : 'text-red-400'}>{isPaid ? '✓' : '✕'}</span>
+                    </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

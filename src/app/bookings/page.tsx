@@ -2,6 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 type Slot = {
   id: string
@@ -17,7 +18,31 @@ type Slot = {
   event_id?: string | null
 }
 
-const toInputDateValue = (date: Date) => date.toISOString().slice(0, 10)
+const toInputDateValue = (date: Date) => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
+}
+
+const expandEventDateRange = (startDateRaw?: string, endDateRaw?: string) => {
+  const startKey = String(startDateRaw || '').slice(0, 10)
+  const endKey = String(endDateRaw || startDateRaw || '').slice(0, 10)
+  if (!startKey) return [] as string[]
+
+  const start = new Date(`${startKey}T00:00:00.000Z`)
+  const end = new Date(`${endKey}T00:00:00.000Z`)
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return [startKey]
+  }
+
+  const keys: string[] = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    keys.push(cursor.toISOString().slice(0, 10))
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  }
+  return keys
+}
 
 const formatMoney = (cents: number, currency = 'USD') =>
   new Intl.NumberFormat('en-US', {
@@ -25,20 +50,97 @@ const formatMoney = (cents: number, currency = 'USD') =>
     currency,
   }).format((Number(cents) || 0) / 100)
 
+const BOOKING_PREFILL_KEY = 'kraken_booking_prefill_v1'
+const PROFILE_PREFILL_KEY = 'kraken_profile_prefill_v1'
+
 export default function BookingsPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState(toInputDateValue(new Date()))
+  const [calendarMonth, setCalendarMonth] = useState(toInputDateValue(new Date()).slice(0, 7))
   const [slots, setSlots] = useState<Slot[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedSlotId, setSelectedSlotId] = useState('')
   const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
+  const [contact, setContact] = useState('')
   const [discord, setDiscord] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [eventFilter, setEventFilter] = useState('')
+  const [eventDateKeys, setEventDateKeys] = useState<string[]>([])
+  const [calendarDayStates, setCalendarDayStates] = useState<Record<string, 'open' | 'full'>>({})
+
+  useEffect(() => {
+    const hydratePrefillData = async () => {
+      try {
+        const profileRaw = window.localStorage.getItem(PROFILE_PREFILL_KEY)
+        if (profileRaw) {
+          const profile = JSON.parse(profileRaw) as {
+            fullName?: string
+            firstName?: string
+            lastName?: string
+            contact?: string
+            discord?: string
+          }
+
+          const derivedName =
+            String(profile.fullName || '').trim() ||
+            `${String(profile.firstName || '').trim()} ${String(profile.lastName || '').trim()}`.trim()
+
+          setFullName((previous: string) => previous || derivedName)
+          setContact((previous: string) => previous || String(profile.contact || ''))
+          setDiscord((previous: string) => previous || String(profile.discord || ''))
+        }
+
+        const storedRaw = window.localStorage.getItem(BOOKING_PREFILL_KEY)
+        if (storedRaw) {
+          const stored = JSON.parse(storedRaw) as {
+            fullName?: string
+            contact?: string
+            email?: string
+            discord?: string
+          }
+
+          setFullName((previous: string) => previous || String(stored.fullName || ''))
+          setContact((previous: string) => previous || String(stored.contact || stored.email || ''))
+          setDiscord((previous: string) => previous || String(stored.discord || ''))
+        }
+      } catch {
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const user = session?.user
+      if (!user) return
+
+      const fallbackName =
+        String(user.user_metadata?.full_name || '') ||
+        String(user.user_metadata?.display_name || '') ||
+        String(user.user_metadata?.name || '')
+
+      const fallbackDiscord =
+        String(user.user_metadata?.discord_username || '') ||
+        String(user.user_metadata?.preferred_username || '')
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .single()
+
+      const profileDisplayName = String(profile?.display_name || '')
+
+      setContact((previous: string) => previous || String(user.email || ''))
+      setFullName((previous: string) => previous || profileDisplayName || fallbackName)
+      setDiscord((previous: string) => previous || fallbackDiscord)
+    }
+
+    hydratePrefillData()
+  }, [supabase])
 
   useEffect(() => {
     const eventId = new URLSearchParams(window.location.search).get('event_id')
@@ -50,6 +152,53 @@ export default function BookingsPage() {
   useEffect(() => {
     fetchSlots()
   }, [selectedDate, eventFilter])
+
+  useEffect(() => {
+    setCalendarMonth(selectedDate.slice(0, 7))
+  }, [selectedDate])
+
+  useEffect(() => {
+    const fetchEventDates = async () => {
+      const response = await fetch('/api/public/events?limit=50')
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) return
+
+      const nextDates = Array.from(
+        new Set(
+          ((payload.events || []) as Array<{ start_date?: string; end_date?: string }>)
+            .flatMap((eventItem) => expandEventDateRange(eventItem.start_date, eventItem.end_date))
+        )
+      )
+
+      setEventDateKeys(nextDates)
+    }
+
+    fetchEventDates()
+  }, [])
+
+  useEffect(() => {
+    const fetchCalendarAvailability = async () => {
+      const params = new URLSearchParams({ month: calendarMonth })
+      if (eventFilter) params.set('event_id', eventFilter)
+
+      const response = await fetch(`/api/public/booking-slots?${params.toString()}`)
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setCalendarDayStates({})
+        return
+      }
+
+      const nextStates: Record<string, 'open' | 'full'> = {}
+      const days = (payload.calendarDays || {}) as Record<string, { totalSlots: number; openSlots: number }>
+      Object.entries(days).forEach(([dayKey, value]) => {
+        if (Number(value?.totalSlots || 0) <= 0) return
+        nextStates[dayKey] = Number(value?.openSlots || 0) > 0 ? 'open' : 'full'
+      })
+      setCalendarDayStates(nextStates)
+    }
+
+    fetchCalendarAvailability()
+  }, [calendarMonth, eventFilter])
 
   const fetchSlots = async () => {
     setLoading(true)
@@ -78,34 +227,56 @@ export default function BookingsPage() {
 
   const selectedSlot = useMemo(() => slots.find((slot) => slot.id === selectedSlotId) || null, [slots, selectedSlotId])
 
-  const quickCalendarDates = useMemo(() => {
-    const base = new Date()
-    return Array.from({ length: 14 }).map((_, index) => {
-      const day = new Date(base)
-      day.setDate(base.getDate() + index)
-      return {
-        key: toInputDateValue(day),
-        label: day.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }),
-      }
-    })
-  }, [])
+  const monthCalendar = useMemo(() => {
+    const [yearRaw, monthRaw] = calendarMonth.split('-')
+    const year = Number(yearRaw)
+    const month = Number(monthRaw)
+    if (!Number.isFinite(year) || !Number.isFinite(month)) {
+      return { monthLabel: '', cells: [] as Array<{ key: string; dayLabel: string; inMonth: boolean }> }
+    }
 
-  const handleCancel = () => {
+    const firstDay = new Date(year, month - 1, 1)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const firstWeekday = firstDay.getDay()
+    const cells: Array<{ key: string; dayLabel: string; inMonth: boolean }> = []
+
+    for (let i = 0; i < firstWeekday; i += 1) {
+      cells.push({ key: `empty-${i}`, dayLabel: '', inMonth: false })
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push({
+        key: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        dayLabel: String(day),
+        inMonth: true,
+      })
+    }
+
+    return {
+      monthLabel: firstDay.toLocaleDateString([], { month: 'long', year: 'numeric' }),
+      cells,
+    }
+  }, [calendarMonth])
+
+  const shiftMonth = (delta: number) => {
+    const [yearRaw, monthRaw] = calendarMonth.split('-')
+    const year = Number(yearRaw)
+    const month = Number(monthRaw)
+    const next = new Date(year, month - 1 + delta, 1)
+    const nextMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`
+    setCalendarMonth(nextMonth)
+  }
+
+  const handleFinish = () => {
     setSelectedSlotId('')
     setFullName('')
-    setEmail('')
+    setContact('')
     setDiscord('')
     setNotes('')
     setMessage('')
     setError('')
 
-    const from = new URLSearchParams(window.location.search).get('from')
-    if (from === 'home') {
-      router.push('/#events')
-      return
-    }
-
-    router.push('/')
+    router.push('/', { scroll: true })
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -120,7 +291,7 @@ export default function BookingsPage() {
       body: JSON.stringify({
         slotId: selectedSlotId,
         fullName,
-        email,
+        contact,
         discord,
         notes,
       }),
@@ -134,10 +305,33 @@ export default function BookingsPage() {
       return
     }
 
-    setMessage('Booking request submitted. We will confirm your time shortly.')
-    setFullName('')
-    setEmail('')
-    setDiscord('')
+    try {
+      window.localStorage.setItem(
+        BOOKING_PREFILL_KEY,
+        JSON.stringify({
+          fullName: fullName.trim(),
+          contact: contact.trim(),
+          discord: discord.trim(),
+        })
+      )
+    } catch {
+    }
+
+    try {
+      if (payload?.id) {
+        window.localStorage.setItem(
+          'kraken_pending_payment_booking',
+          JSON.stringify({
+            reservationId: payload.id,
+            paymentReady: Boolean(payload?.next?.paymentReady),
+            paymentPath: String(payload?.next?.paymentPath || '/payment'),
+          })
+        )
+      }
+    } catch {
+    }
+
+    setMessage('Booking request submitted. You are all set for now. Payment step will be enabled soon.')
     setNotes('')
     setSubmitting(false)
     fetchSlots()
@@ -155,22 +349,59 @@ export default function BookingsPage() {
           <div className="space-y-4">
             <div>
               <p className="block text-sm font-display tracking-wide text-kraken-cyan mb-2">QUICK CALENDAR</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {quickCalendarDates.map((day) => (
-                  <button
-                    key={day.key}
-                    type="button"
-                    onClick={() => setSelectedDate(day.key)}
-                    className={`border-2 px-3 py-2 text-xs sm:text-sm font-display transition-colors ${
-                      selectedDate === day.key
-                        ? 'border-kraken-cyan text-kraken-cyan bg-kraken-card'
-                        : 'border-gray-700 text-gray-300 hover:border-kraken-cyan/60'
-                    }`}
-                  >
-                    {day.label}
-                  </button>
+              <div className="flex items-center justify-between mb-2">
+                <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => shiftMonth(-1)}>
+                  PREV
+                </button>
+                <p className="text-sm text-gray-300">{monthCalendar.monthLabel}</p>
+                <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => shiftMonth(1)}>
+                  NEXT
+                </button>
+              </div>
+              <div className="grid grid-cols-7 gap-2 text-[11px] text-gray-500 mb-2">
+                {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((name) => (
+                  <p key={name} className="text-center">{name}</p>
                 ))}
               </div>
+              <div className="grid grid-cols-7 gap-2">
+                {monthCalendar.cells.map((day) => {
+                  if (!day.inMonth) {
+                    return <div key={day.key} className="h-10" />
+                  }
+
+                  const hasEvent = eventDateKeys.includes(day.key)
+                  const slotState = calendarDayStates[day.key]
+                  const isPast = day.key < toInputDateValue(new Date())
+                  const isSelected = selectedDate === day.key
+                  const baseClass = 'h-10 border-2 text-xs sm:text-sm font-display transition-colors'
+
+                  let dayClass = 'border-gray-700 text-gray-300'
+                  if (hasEvent) {
+                    dayClass = 'border-kraken-pink text-kraken-pink bg-kraken-card ring-1 ring-kraken-pink/70'
+                  } else if (slotState === 'full') {
+                    dayClass = 'border-red-500 text-red-400 bg-kraken-card ring-1 ring-red-500/60'
+                  } else if (slotState === 'open') {
+                    dayClass = 'border-kraken-cyan text-kraken-cyan bg-kraken-card ring-1 ring-kraken-cyan/60'
+                  }
+
+                  if (isSelected) {
+                    dayClass = 'border-kraken-cyan bg-kraken-cyan text-black'
+                  }
+
+                  return (
+                    <button
+                      key={day.key}
+                      type="button"
+                      onClick={() => setSelectedDate(day.key)}
+                      disabled={isPast}
+                      className={`${baseClass} ${dayClass} ${isPast ? 'opacity-35 cursor-not-allowed' : 'hover:border-kraken-cyan/60'}`}
+                    >
+                      {day.dayLabel}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Cyan glow = open slots, red glow = full, pink/purple glow = event day.</p>
             </div>
 
             <label className="block text-sm font-display tracking-wide text-kraken-cyan">DATE</label>
@@ -228,7 +459,7 @@ export default function BookingsPage() {
             )}
 
             <input className="input-field" placeholder="Full Name" value={fullName} onChange={(event: ChangeEvent<HTMLInputElement>) => setFullName(event.target.value)} required />
-            <input className="input-field" placeholder="Email" type="email" value={email} onChange={(event: ChangeEvent<HTMLInputElement>) => setEmail(event.target.value)} required />
+            <input className="input-field" placeholder="Email or Phone" type="text" value={contact} onChange={(event: ChangeEvent<HTMLInputElement>) => setContact(event.target.value)} required />
             <input className="input-field" placeholder="Discord (optional)" value={discord} onChange={(event: ChangeEvent<HTMLInputElement>) => setDiscord(event.target.value)} />
             <textarea className="input-field" rows={3} placeholder="Notes (optional)" value={notes} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNotes(event.target.value)} />
 
@@ -236,8 +467,8 @@ export default function BookingsPage() {
               {submitting ? 'SUBMITTING...' : 'REQUEST BOOKING'}
             </button>
 
-            <button type="button" className="btn-secondary w-full justify-center inline-flex" onClick={handleCancel} disabled={submitting}>
-              CANCEL
+            <button type="button" className="btn-secondary w-full justify-center inline-flex" onClick={handleFinish} disabled={submitting}>
+              FINISH
             </button>
 
             {message && <p className="text-kraken-cyan text-sm">{message}</p>}
