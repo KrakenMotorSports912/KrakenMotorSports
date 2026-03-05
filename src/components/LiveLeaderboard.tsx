@@ -324,128 +324,134 @@ export default function LiveLeaderboard({ mode = 'home' }: LiveLeaderboardProps)
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mb-8 max-w-5xl mx-auto">
-          <select
-            value={viewMode}
-            onChange={(event) => setViewMode(event.target.value as ViewMode)}
-            className="input-field"
-          >
-            <option value="overall">Overall Leaderboard</option>
-            <option value="game">Sort By Game</option>
-            <option value="track">Sort By Track</option>
-            <option value="car">Sort By Car</option>
-            <option value="combination">Sort By Combination</option>
-            <option value="event">Sort By Event</option>
-          </select>
-
-          {(viewMode === 'game' || viewMode === 'combination') && (
-            <div className="space-y-2">
-              <input
-                value={gameSearch}
-                onChange={(event) => setGameSearch(event.target.value)}
-                className="input-field"
-                placeholder="Search games..."
-              />
+        <div className="mb-8 max-w-5xl mx-auto space-y-3">
+          <div className="flex flex-wrap justify-center items-start gap-3">
+            <div className="w-full sm:w-[260px]">
               <select
-                value={selectedGame}
-                onChange={(event) => setSelectedGame(event.target.value)}
+                value={viewMode}
+                onChange={(event) => setViewMode(event.target.value as ViewMode)}
                 className="input-field"
               >
-                <option value="all">All Games</option>
-                {filteredGames.map((game) => (
-                  <option key={game} value={game}>
-                    {game.replace(/_/g, ' ').toUpperCase()}
-                  </option>
-                ))}
+                <option value="overall">Overall Leaderboard</option>
+                <option value="game">Sort By Game</option>
+                <option value="track">Sort By Track</option>
+                <option value="car">Sort By Car</option>
+                <option value="combination">Sort By Combination</option>
+                <option value="event">Sort By Event</option>
               </select>
             </div>
-          )}
 
-          {(viewMode === 'track' || viewMode === 'combination') && (
-            <div className="space-y-2">
-              <input
-                value={trackSearch}
-                onChange={(event) => setTrackSearch(event.target.value)}
-                className="input-field"
-                placeholder="Search tracks..."
-              />
-              <select
-                value={selectedTrack}
-                onChange={(event) => setSelectedTrack(event.target.value)}
-                className="input-field"
-              >
-                <option value="all">All Tracks</option>
-                {filteredTracks.map((track) => (
-                  <option key={track} value={track}>
-                    {track}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+            {(viewMode === 'game' || viewMode === 'combination') && (
+              <div className="space-y-2 w-full sm:w-[260px]">
+                <input
+                  value={gameSearch}
+                  onChange={(event) => setGameSearch(event.target.value)}
+                  className="input-field"
+                  placeholder="Search games..."
+                />
+                <select
+                  value={selectedGame}
+                  onChange={(event) => setSelectedGame(event.target.value)}
+                  className="input-field"
+                >
+                  <option value="all">All Games</option>
+                  {filteredGames.map((game) => (
+                    <option key={game} value={game}>
+                      {game.replace(/_/g, ' ').toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {(viewMode === 'car' || viewMode === 'combination') && (
-            <div className="space-y-2">
-              <input
-                value={carSearch}
-                onChange={(event) => setCarSearch(event.target.value)}
-                className="input-field"
-                placeholder="Search cars..."
-              />
-              <select
-                value={selectedCar}
-                onChange={(event) => setSelectedCar(event.target.value)}
-                className="input-field"
-              >
-                <option value="all">All Cars</option>
-                {filteredCars.map((car) => (
-                  <option key={car} value={car}>
-                    {car}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+            {(viewMode === 'track' || viewMode === 'combination') && (
+              <div className="space-y-2 w-full sm:w-[260px]">
+                <input
+                  value={trackSearch}
+                  onChange={(event) => setTrackSearch(event.target.value)}
+                  className="input-field"
+                  placeholder="Search tracks..."
+                />
+                <select
+                  value={selectedTrack}
+                  onChange={(event) => setSelectedTrack(event.target.value)}
+                  className="input-field"
+                >
+                  <option value="all">All Tracks</option>
+                  {filteredTracks.map((track) => (
+                    <option key={track} value={track}>
+                      {track}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {(viewMode === 'car' || viewMode === 'combination') && (
+              <div className="space-y-2 w-full sm:w-[260px]">
+                <input
+                  value={carSearch}
+                  onChange={(event) => setCarSearch(event.target.value)}
+                  className="input-field"
+                  placeholder="Search cars..."
+                />
+                <select
+                  value={selectedCar}
+                  onChange={(event) => setSelectedCar(event.target.value)}
+                  className="input-field"
+                >
+                  <option value="all">All Cars</option>
+                  {filteredCars.map((car) => (
+                    <option key={car} value={car}>
+                      {car}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setSelectedGame('all')
+                setSelectedTrack('all')
+                setSelectedCar('all')
+                setSelectedEventId('all')
+                setViewMode('overall')
+                setGameSearch('')
+                setTrackSearch('')
+                setCarSearch('')
+                setEventSearch('')
+              }}
+              className="btn-secondary w-full sm:w-[260px]"
+            >
+              CLEAR FILTERS
+            </button>
+          </div>
 
           {viewMode === 'event' && (
-            <div className="space-y-2">
-              <input
-                value={eventSearch}
-                onChange={(event) => setEventSearch(event.target.value)}
-                className="input-field"
-                placeholder="Search events..."
-              />
-              <select
-                value={selectedEventId}
-                onChange={(event) => setSelectedEventId(event.target.value)}
-                className="input-field"
-              >
-                <option value="all">All Events</option>
-                {filteredEvents.map((eventItem) => (
-                  <option key={eventItem.id} value={eventItem.id}>
-                    {eventItem.title} ({eventItem.game.replace(/_/g, ' ')})
-                  </option>
-                ))}
-              </select>
+            <div className="flex justify-center">
+              <div className="space-y-2 w-full sm:w-[420px]">
+                <input
+                  value={eventSearch}
+                  onChange={(event) => setEventSearch(event.target.value)}
+                  className="input-field"
+                  placeholder="Search events..."
+                />
+                <select
+                  value={selectedEventId}
+                  onChange={(event) => setSelectedEventId(event.target.value)}
+                  className="input-field"
+                >
+                  <option value="all">All Events</option>
+                  {filteredEvents.map((eventItem) => (
+                    <option key={eventItem.id} value={eventItem.id}>
+                      {eventItem.title} ({eventItem.game.replace(/_/g, ' ')})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
-
-          <button
-            onClick={() => {
-              setSelectedGame('all')
-              setSelectedTrack('all')
-              setSelectedCar('all')
-              setSelectedEventId('all')
-              setViewMode('overall')
-              setGameSearch('')
-              setTrackSearch('')
-              setCarSearch('')
-              setEventSearch('')
-            }}
-            className="btn-secondary w-full"
-          >
-            CLEAR FILTERS
-          </button>
         </div>
 
         {/* Leaderboard Table */}
@@ -505,7 +511,7 @@ export default function LiveLeaderboard({ mode = 'home' }: LiveLeaderboardProps)
           <div className="p-6 border-t-2 border-kraken-cyan-dark text-center">
             <p className="text-gray-300 mb-4">Got a hot lap? Submit your time to compete!</p>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
-              <a href="/submit" className="btn-primary inline-block">
+              <a href={mode === 'home' ? '/submit?from=home' : '/submit?from=leaderboards'} className="btn-primary inline-block">
                 SUBMIT YOUR TIME
               </a>
               {mode === 'home' && (

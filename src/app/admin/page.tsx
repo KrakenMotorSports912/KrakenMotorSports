@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Trophy, Calendar, Tag, Users, Clock, TrendingUp } from 'lucide-react'
 import { getDefaultLaunchDate, getLaunchPhase } from '@/lib/launchPhase'
 import {
+  FALLBACK_CARS,
   FALLBACK_GAMES,
   FALLBACK_TRACKS,
   isMissingSiteSettingsTableError,
@@ -33,6 +34,7 @@ export default function AdminDashboard() {
   const [launchMessage, setLaunchMessage] = useState('')
   const [defaultGamesText, setDefaultGamesText] = useState(FALLBACK_GAMES.join('\n'))
   const [defaultTracksText, setDefaultTracksText] = useState(FALLBACK_TRACKS.join('\n'))
+  const [defaultCarsText, setDefaultCarsText] = useState(FALLBACK_CARS.join('\n'))
   const [savingDefaults, setSavingDefaults] = useState(false)
   const [defaultsMessage, setDefaultsMessage] = useState('')
 
@@ -48,6 +50,9 @@ export default function AdminDashboard() {
     }
     if (localDefaults.tracks.length > 0) {
       setDefaultTracksText(localDefaults.tracks.join('\n'))
+    }
+    if (localDefaults.cars.length > 0) {
+      setDefaultCarsText(localDefaults.cars.join('\n'))
     }
 
     // Fetch stats in parallel
@@ -89,12 +94,13 @@ export default function AdminDashboard() {
     const { data: dropdownDefaults, error: defaultsError } = await supabase
       .from('site_settings')
       .select('key, value_text')
-      .in('key', ['default_games', 'default_tracks'])
+      .in('key', ['default_games', 'default_tracks', 'default_cars'])
 
     if (!defaultsError && dropdownDefaults) {
       const settings = dropdownDefaults as SiteSettingRow[]
       const gameSetting = settings.find((setting) => setting.key === 'default_games')
       const trackSetting = settings.find((setting) => setting.key === 'default_tracks')
+      const carSetting = settings.find((setting) => setting.key === 'default_cars')
 
       if (gameSetting?.value_text) {
         const games = parseOptionsInput(gameSetting.value_text)
@@ -107,6 +113,13 @@ export default function AdminDashboard() {
         const tracks = parseOptionsInput(trackSetting.value_text)
         if (tracks.length > 0) {
           setDefaultTracksText(tracks.join('\n'))
+        }
+      }
+
+      if (carSetting?.value_text) {
+        const cars = parseOptionsInput(carSetting.value_text)
+        if (cars.length > 0) {
+          setDefaultCarsText(cars.join('\n'))
         }
       }
     }
@@ -154,6 +167,7 @@ export default function AdminDashboard() {
 
     const games = parseOptionsInput(defaultGamesText)
     const tracks = parseOptionsInput(defaultTracksText)
+    const cars = parseOptionsInput(defaultCarsText)
 
     if (games.length === 0) {
       setDefaultsMessage('Add at least one default game.')
@@ -167,28 +181,36 @@ export default function AdminDashboard() {
       return
     }
 
+    if (cars.length === 0) {
+      setDefaultsMessage('Add at least one default car.')
+      setSavingDefaults(false)
+      return
+    }
+
     const { error } = await supabase
       .from('site_settings')
       .upsert(
         [
           { key: 'default_games', value_text: games.join('\n') },
           { key: 'default_tracks', value_text: tracks.join('\n') },
+          { key: 'default_cars', value_text: cars.join('\n') },
         ],
         { onConflict: 'key' }
       )
 
     if (error) {
       if (isMissingSiteSettingsTableError(error.message)) {
-        saveLocalDefaultOptions(games, tracks)
+        saveLocalDefaultOptions(games, tracks, cars)
         setDefaultsMessage('Saved defaults locally in this browser. To sync across devices, create the site_settings table in Supabase.')
       } else {
         setDefaultsMessage(`Could not save defaults: ${error.message}`)
       }
     } else {
-      saveLocalDefaultOptions(games, tracks)
+      saveLocalDefaultOptions(games, tracks, cars)
       setDefaultsMessage('Default dropdown options saved successfully.')
       setDefaultGamesText(games.join('\n'))
       setDefaultTracksText(tracks.join('\n'))
+      setDefaultCarsText(cars.join('\n'))
     }
 
     setSavingDefaults(false)
@@ -377,9 +399,9 @@ export default function AdminDashboard() {
           DEFAULT DROPDOWN OPTIONS
         </h3>
         <p className="text-gray-400 mb-4 text-sm">
-          Manage default Games and Tracks used in admin forms. Use one value per line (or commas).
+          Manage default Games, Tracks, and Cars used in forms and Discord filters. Use one value per line (or commas).
         </p>
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-3 gap-4">
           <div>
             <label className="block text-kraken-cyan mb-2 font-display">DEFAULT GAMES</label>
             <textarea
@@ -396,6 +418,15 @@ export default function AdminDashboard() {
               onChange={(event) => setDefaultTracksText(event.target.value)}
               className="input-field min-h-[180px]"
               placeholder="Monza\nSpa-Francorchamps\nSilverstone"
+            />
+          </div>
+          <div>
+            <label className="block text-kraken-cyan mb-2 font-display">DEFAULT CARS</label>
+            <textarea
+              value={defaultCarsText}
+              onChange={(event) => setDefaultCarsText(event.target.value)}
+              className="input-field min-h-[180px]"
+              placeholder="Porsche 911 GT3\nFerrari 296 GT3\nMercedes-AMG GT3"
             />
           </div>
         </div>

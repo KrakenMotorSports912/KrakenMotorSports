@@ -25,6 +25,32 @@ type SiteSettingRow = {
   value_text: string | null
 }
 
+type EventOption = {
+  id: string
+  title: string
+  game: string
+  track: string
+  car_class: string | null
+}
+
+const CAR_CLASS_SUGGESTIONS: Record<string, string[]> = {
+  gt3: ['Porsche 911 GT3', 'Mercedes-AMG GT3', 'Ferrari 296 GT3', 'Lamborghini Huracán GT3'],
+  gt4: ['Porsche Cayman GT4', 'BMW M4 GT4', 'Aston Martin Vantage GT4'],
+  formula: ['F1 2025 Car', 'Formula Regional Car', 'Formula 3 Car'],
+  hypercar: ['Porsche 963', 'Ferrari 499P', 'Toyota GR010 Hybrid'],
+  touring: ['Honda Civic TCR', 'Hyundai Elantra TCR', 'Audi RS3 LMS'],
+}
+
+const getCarSuggestions = (carClass: string | null) => {
+  if (!carClass) {
+    return [] as string[]
+  }
+
+  const normalized = carClass.toLowerCase()
+  const key = Object.keys(CAR_CLASS_SUGGESTIONS).find((item) => normalized.includes(item))
+  return key ? CAR_CLASS_SUGGESTIONS[key] : [carClass]
+}
+
 export default function AdminLeaderboardPage() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending')
@@ -44,6 +70,8 @@ export default function AdminLeaderboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [defaultGames, setDefaultGames] = useState<string[]>(FALLBACK_GAMES)
   const [defaultTracks, setDefaultTracks] = useState<string[]>(FALLBACK_TRACKS)
+  const [eventOptions, setEventOptions] = useState<EventOption[]>([])
+  const [selectedEventForEntry, setSelectedEventForEntry] = useState('')
   const [newEntry, setNewEntry] = useState({
     driver_name: '',
     game: FALLBACK_GAMES[0],
@@ -54,6 +82,9 @@ export default function AdminLeaderboardPage() {
     video_url: ''
   })
   const supabase = createClient()
+  const selectedEventForManualEntry = eventOptions.find((item) => item.id === selectedEventForEntry)
+  const manualEntryEventCarClass = selectedEventForManualEntry?.car_class || null
+  const manualEntryCarSuggestions = getCarSuggestions(manualEntryEventCarClass)
 
   useEffect(() => {
     fetchDropdownDefaults()
@@ -111,33 +142,53 @@ export default function AdminLeaderboardPage() {
     }
   }
 
+  const fetchEventOptions = async () => {
+    const { data } = await supabase
+      .from('events')
+      .select('id,title,game,track,car_class')
+      .eq('is_active', true)
+      .order('start_date', { ascending: false })
+      .limit(30)
+
+    if (data) {
+      setEventOptions(data as EventOption[])
+    }
+  }
+
   const fetchEntries = async () => {
     setLoading(true)
-    let query = supabase
-      .from('leaderboard_entries')
-      .select('*')
-      .order(sortBy, { ascending: sortDirection === 'asc' })
+    const { data: { session } } = await supabase.auth.getSession()
+    const accessToken = session?.access_token
 
-    if (filter !== 'all') {
-      query = query.eq('status', filter)
+    if (!accessToken) {
+      setEntries([])
+      setLoading(false)
+      return
     }
 
-    if (gameFilter !== 'all') {
-      query = query.eq('game', gameFilter)
+    const params = new URLSearchParams({
+      filter,
+      game: gameFilter,
+      track: trackFilter,
+      car: carFilter,
+      sortBy,
+      sortDirection,
+    })
+
+    const response = await fetch(`/api/admin/leaderboard?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (response.ok) {
+      setEntries(payload.entries || [])
+    } else {
+      setEntries([])
+      alert('Unable to load leaderboard entries: ' + (payload.error || 'Unknown error'))
     }
 
-    if (trackFilter !== 'all') {
-      query = query.eq('track', trackFilter)
-    }
-
-    if (carFilter !== 'all') {
-      query = query.eq('car', carFilter)
-    }
-
-    const { data, error } = await query
-    if (!error && data) {
-      setEntries(data)
-    }
     setLoading(false)
   }
 
@@ -171,36 +222,47 @@ export default function AdminLeaderboardPage() {
     setAvailableCars(cars)
   }
 
-  const handleApprove = async (id: string) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    const { error } = await supabase
-      .from('leaderboard_entries')
-      .update({
-        status: 'approved',
-        verified_by: user?.id,
-        verified_at: new Date().toISOString(),
-      })
-      .eq('id', id)
+  const updateEntryStatus = async (id: string, status: 'approved' | 'rejected' | 'pending', rejectionReason?: string) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const accessToken = session?.access_token
 
-    if (!error) {
+    if (!accessToken) {
+      alert('You must be logged in to update entry status.')
+      return false
+    }
+
+    const response = await fetch(`/api/admin/leaderboard/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        status,
+        rejection_reason: rejectionReason || null,
+      }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      alert('Error updating entry status: ' + (payload.error || 'Unknown error'))
+      return false
+    }
+
+    return true
+  }
+
+  const handleApprove = async (id: string) => {
+    const success = await updateEntryStatus(id, 'approved')
+    if (success) {
       fetchEntries()
       setSelectedEntry(null)
     }
   }
 
   const handleReject = async (id: string, reason: string) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    const { error } = await supabase
-      .from('leaderboard_entries')
-      .update({
-        status: 'rejected',
-        rejection_reason: reason,
-        verified_by: user?.id,
-        verified_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-
-    if (!error) {
+    const success = await updateEntryStatus(id, 'rejected', reason)
+    if (success) {
       fetchEntries()
       setSelectedEntry(null)
     }
@@ -288,16 +350,10 @@ export default function AdminLeaderboardPage() {
       .single()
 
     if (!error) {
-      await supabase
-        .from('leaderboard_entries')
-        .update({
-          status: 'approved',
-          verified_by: user.id,
-          verified_at: new Date().toISOString(),
-        })
-        .eq('id', insertedEntry.id)
+      await updateEntryStatus(insertedEntry.id, 'approved')
 
       setShowCreateModal(false)
+      setSelectedEventForEntry('')
       setNewEntry({
         driver_name: '',
         game: defaultGames[0] || FALLBACK_GAMES[0],
@@ -312,6 +368,10 @@ export default function AdminLeaderboardPage() {
       alert('Error creating entry: ' + error.message)
     }
   }
+
+  useEffect(() => {
+    fetchEventOptions()
+  }, [])
 
   const FilterButton = ({ value, label }: { value: typeof filter; label: string }) => (
     <button
@@ -692,6 +752,35 @@ export default function AdminLeaderboardPage() {
 
             <div className="space-y-4">
               <div>
+                <label className="block text-gray-300 mb-2">Event (optional)</label>
+                <select
+                  value={selectedEventForEntry}
+                  onChange={(event) => {
+                    const nextEventId = event.target.value
+                    setSelectedEventForEntry(nextEventId)
+
+                    const selectedEvent = eventOptions.find((item) => item.id === nextEventId)
+                    if (selectedEvent) {
+                      setNewEntry((previous) => ({
+                        ...previous,
+                        game: selectedEvent.game,
+                        track: selectedEvent.track,
+                        car: previous.car.trim() ? previous.car : selectedEvent.car_class || previous.car,
+                      }))
+                    }
+                  }}
+                  className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none"
+                >
+                  <option value="">No event selected</option>
+                  {eventOptions.map((eventItem) => (
+                    <option key={eventItem.id} value={eventItem.id}>
+                      {eventItem.title} ({eventItem.game.replace(/_/g, ' ')} • {eventItem.track}{eventItem.car_class ? ` • ${eventItem.car_class}` : ''})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-gray-300 mb-2">Driver Name *</label>
                 <input
                   type="text"
@@ -742,10 +831,19 @@ export default function AdminLeaderboardPage() {
                   type="text"
                   value={newEntry.car}
                   onChange={(e) => setNewEntry({ ...newEntry, car: e.target.value })}
+                  list="admin-leaderboard-car-suggestions"
                   className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none"
                   placeholder="e.g., Porsche 911 GT3"
                   required
                 />
+                <datalist id="admin-leaderboard-car-suggestions">
+                  {manualEntryCarSuggestions.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+                {manualEntryEventCarClass && (
+                  <p className="text-xs text-gray-400 mt-1">Event car class: {manualEntryEventCarClass}. Suggested cars are shown above.</p>
+                )}
               </div>
 
               <div>
@@ -793,7 +891,10 @@ export default function AdminLeaderboardPage() {
                   CREATE ENTRY
                 </button>
                 <button
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false)
+                    setSelectedEventForEntry('')
+                  }}
                   className="btn-secondary flex-1"
                 >
                   CANCEL

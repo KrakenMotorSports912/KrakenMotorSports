@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
-import { FALLBACK_GAMES, FALLBACK_TRACKS, parseOptionsInput } from '@/lib/adminDefaults'
+import { FALLBACK_CARS, FALLBACK_GAMES, FALLBACK_TRACKS, parseOptionsInput } from '@/lib/adminDefaults'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     const [leaderboardResult, defaultsResult, eventsResult] = await Promise.all([
       supabase.from('leaderboard_entries').select('game,track,car').eq('status', 'approved').limit(1000),
-      untypedClient.from('site_settings').select('key, value_text').in('key', ['default_games', 'default_tracks']),
+      untypedClient.from('site_settings').select('key, value_text').in('key', ['default_games', 'default_tracks', 'default_cars']),
       supabase
         .from('events')
         .select('id,title,game,track,start_date')
@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
     const defaultsRows = !defaultsResult.error ? ((defaultsResult.data || []) as SiteSettingRow[]) : []
     const defaultGames = parseOptionsInput(defaultsRows.find((item) => item.key === 'default_games')?.value_text || '')
     const defaultTracks = parseOptionsInput(defaultsRows.find((item) => item.key === 'default_tracks')?.value_text || '')
+    const defaultCars = parseOptionsInput(defaultsRows.find((item) => item.key === 'default_cars')?.value_text || '')
 
     if (type === 'events') {
       const eventOptions = events
@@ -106,7 +107,13 @@ export async function GET(request: NextRequest) {
         : leaderboardRows.map((row) => row.car)
 
     const defaultsForType =
-      type === 'games' ? [...FALLBACK_GAMES, ...defaultGames] : type === 'tracks' ? [...FALLBACK_TRACKS, ...defaultTracks] : []
+      type === 'games'
+        ? [...FALLBACK_GAMES, ...defaultGames]
+        : type === 'tracks'
+        ? [...FALLBACK_TRACKS, ...defaultTracks]
+        : type === 'cars'
+        ? [...FALLBACK_CARS, ...defaultCars]
+        : []
 
     const combined = Array.from(new Set([...valuesFromRows.filter(Boolean), ...defaultsForType]))
       .filter((value) => !queryText || value.toLowerCase().includes(queryText))
