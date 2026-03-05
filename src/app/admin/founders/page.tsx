@@ -151,7 +151,7 @@ export default function AdminFoundersPage() {
         <div className="space-y-4">
           {passes.map((pass) => (
             <div key={pass.id} className="card hover:border-kraken-cyan transition-all">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
                     <span className="text-4xl font-display text-kraken-cyan">#{pass.pass_number}</span>
@@ -219,10 +219,10 @@ export default function AdminFoundersPage() {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-2 ml-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 w-full lg:w-auto lg:ml-4">
                   <button
                     onClick={() => setSelectedPass(pass)}
-                    className="btn-secondary text-sm py-2 px-4"
+                    className="btn-secondary text-sm py-2 px-4 flex items-center justify-center"
                   >
                     DETAILS
                   </button>
@@ -230,7 +230,7 @@ export default function AdminFoundersPage() {
                   {pass.status !== 'active' && (
                     <button
                       onClick={() => updateStatus(pass.id, 'active')}
-                      className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 text-sm font-display transition-colors"
+                      className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 text-sm font-display transition-colors flex items-center justify-center"
                     >
                       ACTIVATE
                     </button>
@@ -239,7 +239,7 @@ export default function AdminFoundersPage() {
                   {pass.status === 'reserved' && (
                     <button
                       onClick={() => updateStatus(pass.id, 'paid')}
-                      className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 text-sm font-display transition-colors"
+                      className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 text-sm font-display transition-colors flex items-center justify-center"
                     >
                       MARK PAID
                     </button>
@@ -252,7 +252,7 @@ export default function AdminFoundersPage() {
                           updateStatus(pass.id, 'cancelled')
                         }
                       }}
-                      className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 text-sm font-display transition-colors"
+                      className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 text-sm font-display transition-colors flex items-center justify-center"
                     >
                       CANCEL
                     </button>

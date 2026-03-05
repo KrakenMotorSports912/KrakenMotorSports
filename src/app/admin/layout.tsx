@@ -72,20 +72,20 @@ export default function AdminLayout({
     <div className="min-h-screen bg-kraken-dark">
       {/* Admin Header */}
       <header className="bg-kraken-card border-b-2 border-kraken-cyan">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="container mx-auto px-4 py-4 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-3xl font-display tracking-wider text-kraken-cyan">
+            <h1 className="text-2xl sm:text-3xl font-display tracking-wider text-kraken-cyan">
               🦑 ADMIN DASHBOARD
             </h1>
             <p className="text-gray-400 text-sm">Kraken Motorsports Management</p>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="btn-secondary text-sm py-2 px-4">
+          <div className="flex w-full sm:w-auto flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+            <Link href="/" className="btn-secondary text-sm py-2 px-4 text-center">
               VIEW SITE
             </Link>
             <button 
               onClick={handleLogout}
-              className="btn-secondary text-sm py-2 px-4 flex items-center gap-2"
+              className="btn-secondary text-sm py-2 px-4 flex items-center justify-center gap-2"
             >
               <LogOut size={16} />
               LOGOUT
@@ -94,15 +94,15 @@ export default function AdminLayout({
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-[250px_1fr] gap-8">
+      <div className="container mx-auto px-4 py-4 sm:py-6 lg:py-8">
+        <div className="grid gap-4 lg:gap-8 lg:grid-cols-[250px_1fr]">
           {/* Sidebar Navigation */}
-          <nav className="space-y-2">
+          <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 -mx-1 px-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-kraken-cyan hover:bg-kraken-card border-2 border-transparent hover:border-kraken-cyan transition-all font-display"
+                className="shrink-0 whitespace-nowrap flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-kraken-cyan hover:bg-kraken-card border-2 border-transparent hover:border-kraken-cyan transition-all font-display"
               >
                 <item.icon size={20} />
                 {item.label}
@@ -111,7 +111,7 @@ export default function AdminLayout({
           </nav>
 
           {/* Main Content */}
-          <main>{children}</main>
+          <main className="min-w-0">{children}</main>
         </div>
       </div>
     </div>

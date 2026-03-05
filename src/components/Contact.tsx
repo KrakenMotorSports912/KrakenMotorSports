@@ -19,7 +19,7 @@ export default function Contact() {
               </p>
             </div>
             <a 
-              href={process.env.NEXT_PUBLIC_DISCORD_INVITE || '#'} 
+              href={process.env.NEXT_PUBLIC_DISCORD_INVITE || 'https://discord.gg/ag39FaqY'} 
               target="_blank" 
               rel="noopener noreferrer"
               className="btn-secondary w-full inline-flex items-center justify-center gap-2"

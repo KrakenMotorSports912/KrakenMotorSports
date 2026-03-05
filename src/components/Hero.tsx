@@ -27,14 +27,14 @@ export default function Hero() {
   const content = phaseContent[phase]
 
   return (
-    <section id="home" className="min-h-screen flex flex-col justify-center items-center relative overflow-hidden pt-20">
+    <section id="home" className="min-h-screen flex flex-col justify-center items-center relative overflow-hidden pt-20 pb-24">
       {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-kraken-dark via-kraken-deep to-kraken-cyan-dark opacity-50" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(0,255,255,0.15),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_30%,rgba(255,0,255,0.15),transparent_50%)]" />
 
       {/* Content */}
-      <div className="container mx-auto px-4 text-center relative z-10">
+      <div className="container mx-auto px-4 text-center relative z-20">
         <div className="mb-8">
           <h1 className="text-6xl md:text-9xl font-display tracking-wider text-kraken-cyan animate-glow mb-4">
             KRAKEN
@@ -57,7 +57,7 @@ export default function Hero() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
           <a 
-            href={process.env.NEXT_PUBLIC_DISCORD_INVITE || '#'} 
+            href={process.env.NEXT_PUBLIC_DISCORD_INVITE || 'https://discord.gg/ag39FaqY'} 
             target="_blank" 
             rel="noopener noreferrer"
             className="btn-primary flex items-center gap-2"
@@ -79,7 +79,7 @@ export default function Hero() {
       </div>
 
       {/* Scroll Indicator */}
-      <div className="absolute bottom-8 inset-x-0 mx-auto w-fit flex flex-col items-center gap-2 text-kraken-cyan animate-bounce z-20">
+      <div className="absolute bottom-8 inset-x-0 mx-auto w-fit hidden md:flex flex-col items-center gap-2 text-kraken-cyan animate-bounce z-10">
         <span className="text-sm tracking-wider">SCROLL TO EXPLORE</span>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
           <path d="M7 10l5 5 5-5z"/>

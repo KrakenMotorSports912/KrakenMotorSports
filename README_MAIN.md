@@ -310,6 +310,21 @@ NEXT_PUBLIC_INSTAGRAM_URL=https://instagram.com/yourhandle
 NEXT_PUBLIC_TIKTOK_URL=https://tiktok.com/@yourhandle
 ```
 
+### Discord Bot API Endpoints
+Use these public JSON endpoints so your Discord bot can pull live data from the site:
+
+- `GET /api/public/events?limit=10&game=assetto_corsa&event_type=race`
+   - Returns active upcoming events sorted by `start_date`
+   - Optional params: `limit` (1-50), `game`, `event_type`
+
+- `GET /api/public/leaderboard?limit=10&game=f1_2025&track=Monza`
+   - Returns approved leaderboard entries with computed `rank`
+   - Optional params: `limit` (1-100), `game`, `track`
+
+Example production URLs:
+- `https://kraken-motor-sports.vercel.app/api/public/events`
+- `https://kraken-motor-sports.vercel.app/api/public/leaderboard`
+
 ### Modify Website Content
 All text is in React components in `src/components/`. Edit:
 - `Hero.tsx` - Landing section, tagline, hero text

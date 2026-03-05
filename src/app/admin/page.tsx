@@ -4,6 +4,19 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Trophy, Calendar, Tag, Users, Clock, TrendingUp } from 'lucide-react'
 import { getDefaultLaunchDate, getLaunchPhase } from '@/lib/launchPhase'
+import {
+  FALLBACK_GAMES,
+  FALLBACK_TRACKS,
+  isMissingSiteSettingsTableError,
+  parseOptionsInput,
+  readLocalDefaultOptions,
+  saveLocalDefaultOptions,
+} from '@/lib/adminDefaults'
+
+type SiteSettingRow = {
+  key: string
+  value_text: string | null
+}
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -18,6 +31,10 @@ export default function AdminDashboard() {
   const [launchDate, setLaunchDate] = useState(getDefaultLaunchDate().slice(0, 16))
   const [savingLaunchDate, setSavingLaunchDate] = useState(false)
   const [launchMessage, setLaunchMessage] = useState('')
+  const [defaultGamesText, setDefaultGamesText] = useState(FALLBACK_GAMES.join('\n'))
+  const [defaultTracksText, setDefaultTracksText] = useState(FALLBACK_TRACKS.join('\n'))
+  const [savingDefaults, setSavingDefaults] = useState(false)
+  const [defaultsMessage, setDefaultsMessage] = useState('')
 
   useEffect(() => {
     fetchDashboardStats()
@@ -25,6 +42,13 @@ export default function AdminDashboard() {
 
   const fetchDashboardStats = async () => {
     const supabase = createClient()
+    const localDefaults = readLocalDefaultOptions()
+    if (localDefaults.games.length > 0) {
+      setDefaultGamesText(localDefaults.games.join('\n'))
+    }
+    if (localDefaults.tracks.length > 0) {
+      setDefaultTracksText(localDefaults.tracks.join('\n'))
+    }
 
     // Fetch stats in parallel
     const [
@@ -60,6 +84,31 @@ export default function AdminDashboard() {
 
     if (launchData?.value_text) {
       setLaunchDate(launchData.value_text.slice(0, 16))
+    }
+
+    const { data: dropdownDefaults, error: defaultsError } = await supabase
+      .from('site_settings')
+      .select('key, value_text')
+      .in('key', ['default_games', 'default_tracks'])
+
+    if (!defaultsError && dropdownDefaults) {
+      const settings = dropdownDefaults as SiteSettingRow[]
+      const gameSetting = settings.find((setting) => setting.key === 'default_games')
+      const trackSetting = settings.find((setting) => setting.key === 'default_tracks')
+
+      if (gameSetting?.value_text) {
+        const games = parseOptionsInput(gameSetting.value_text)
+        if (games.length > 0) {
+          setDefaultGamesText(games.join('\n'))
+        }
+      }
+
+      if (trackSetting?.value_text) {
+        const tracks = parseOptionsInput(trackSetting.value_text)
+        if (tracks.length > 0) {
+          setDefaultTracksText(tracks.join('\n'))
+        }
+      }
     }
 
     setLoading(false)
@@ -98,11 +147,58 @@ export default function AdminDashboard() {
     setSavingLaunchDate(false)
   }
 
+  const saveDropdownDefaults = async () => {
+    setSavingDefaults(true)
+    setDefaultsMessage('')
+    const supabase = createClient()
+
+    const games = parseOptionsInput(defaultGamesText)
+    const tracks = parseOptionsInput(defaultTracksText)
+
+    if (games.length === 0) {
+      setDefaultsMessage('Add at least one default game.')
+      setSavingDefaults(false)
+      return
+    }
+
+    if (tracks.length === 0) {
+      setDefaultsMessage('Add at least one default track.')
+      setSavingDefaults(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert(
+        [
+          { key: 'default_games', value_text: games.join('\n') },
+          { key: 'default_tracks', value_text: tracks.join('\n') },
+        ],
+        { onConflict: 'key' }
+      )
+
+    if (error) {
+      if (isMissingSiteSettingsTableError(error.message)) {
+        saveLocalDefaultOptions(games, tracks)
+        setDefaultsMessage('Saved defaults locally in this browser. To sync across devices, create the site_settings table in Supabase.')
+      } else {
+        setDefaultsMessage(`Could not save defaults: ${error.message}`)
+      }
+    } else {
+      saveLocalDefaultOptions(games, tracks)
+      setDefaultsMessage('Default dropdown options saved successfully.')
+      setDefaultGamesText(games.join('\n'))
+      setDefaultTracksText(tracks.join('\n'))
+    }
+
+    setSavingDefaults(false)
+  }
+
   const StatCard = ({ icon: Icon, label, value, color, href }: any) => (
     <a href={href} className="card hover:scale-105 transition-transform cursor-pointer">
       <div className="flex items-start justify-between mb-4">
         <Icon className={color} size={32} />
-        <span className="text-4xl font-display text-kraken-cyan">{value}</span>
+        <span className="text-3xl sm:text-4xl font-display text-kraken-cyan">{value}</span>
       </div>
       <p className="text-gray-400 font-display tracking-wide">{label}</p>
     </a>
@@ -119,16 +215,16 @@ export default function AdminDashboard() {
   const sitePhase = getLaunchPhase(new Date(launchDate).toISOString())
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h2 className="text-4xl font-display tracking-wider text-kraken-cyan mb-2">
+        <h2 className="text-3xl sm:text-4xl font-display tracking-wider text-kraken-cyan mb-2">
           DASHBOARD OVERVIEW
         </h2>
         <p className="text-gray-400">Welcome to the Kraken Motorsports admin panel</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
         <StatCard
           icon={Clock}
           label="PENDING APPROVALS"
@@ -175,11 +271,11 @@ export default function AdminDashboard() {
 
       {/* Recent Entries */}
       <div className="card">
-        <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-6">
+        <h3 className="text-xl sm:text-2xl font-display tracking-wide text-kraken-cyan mb-6">
           RECENT SUBMISSIONS
         </h3>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="table-header">
                 <th className="py-3 px-4 text-left">DRIVER</th>
@@ -226,7 +322,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
         <a href="/admin/events" className="card text-center hover:scale-105 transition-transform">
           <Calendar className="mx-auto mb-4 text-kraken-cyan" size={48} />
           <h4 className="font-display text-xl text-white mb-2">CREATE EVENT</h4>
@@ -265,7 +361,7 @@ export default function AdminDashboard() {
             type="button"
             onClick={saveLaunchDate}
             disabled={savingLaunchDate}
-            className="btn-primary"
+            className="btn-primary w-full md:w-auto"
           >
             {savingLaunchDate ? 'SAVING...' : 'SAVE OPENING DATE'}
           </button>
@@ -274,6 +370,46 @@ export default function AdminDashboard() {
         <p className="text-xs text-gray-500 mt-4">
           Requires Supabase table: site_settings(key text primary key, value_text text).
         </p>
+      </div>
+
+      <div className="card">
+        <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
+          DEFAULT DROPDOWN OPTIONS
+        </h3>
+        <p className="text-gray-400 mb-4 text-sm">
+          Manage default Games and Tracks used in admin forms. Use one value per line (or commas).
+        </p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-kraken-cyan mb-2 font-display">DEFAULT GAMES</label>
+            <textarea
+              value={defaultGamesText}
+              onChange={(event) => setDefaultGamesText(event.target.value)}
+              className="input-field min-h-[180px]"
+              placeholder="assetto_corsa\nassetto_corsa_competizione\nf1_2025"
+            />
+          </div>
+          <div>
+            <label className="block text-kraken-cyan mb-2 font-display">DEFAULT TRACKS</label>
+            <textarea
+              value={defaultTracksText}
+              onChange={(event) => setDefaultTracksText(event.target.value)}
+              className="input-field min-h-[180px]"
+              placeholder="Monza\nSpa-Francorchamps\nSilverstone"
+            />
+          </div>
+        </div>
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={saveDropdownDefaults}
+            disabled={savingDefaults}
+            className="btn-primary w-full md:w-auto"
+          >
+            {savingDefaults ? 'SAVING...' : 'SAVE DEFAULT OPTIONS'}
+          </button>
+        </div>
+        {defaultsMessage && <p className="text-sm text-gray-300 mt-3">{defaultsMessage}</p>}
       </div>
     </div>
   )

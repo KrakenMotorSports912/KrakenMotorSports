@@ -187,7 +187,7 @@ export default function AdminDiscountsPage() {
 
   return (
     <section>
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4 mb-6">
         <div>
           <h2 className="text-4xl font-display tracking-wider text-kraken-cyan mb-2">
             DISCOUNT MANAGEMENT
@@ -196,7 +196,7 @@ export default function AdminDiscountsPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
         >
           <Plus size={20} />
           {showForm ? 'CANCEL' : 'NEW DISCOUNT'}
@@ -339,11 +339,11 @@ export default function AdminDiscountsPage() {
               <label htmlFor="is_active" className="text-white">Active (can be used)</label>
             </div>
 
-            <div className="flex gap-4">
-              <button type="submit" className="btn-primary">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button type="submit" className="btn-primary w-full sm:w-auto">
                 {editingDiscount ? 'UPDATE DISCOUNT' : 'CREATE DISCOUNT'}
               </button>
-              <button type="button" onClick={resetForm} className="btn-secondary">
+              <button type="button" onClick={resetForm} className="btn-secondary w-full sm:w-auto">
                 CANCEL
               </button>
             </div>
@@ -365,7 +365,7 @@ export default function AdminDiscountsPage() {
         <div className="space-y-4">
           {discounts.map((discount) => (
             <div key={discount.id} className="card">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-3xl font-display font-mono text-kraken-cyan">{discount.code}</h3>
@@ -421,17 +421,17 @@ export default function AdminDiscountsPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 ml-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 w-full lg:w-auto lg:ml-4">
                   <button
                     onClick={() => handleEdit(discount)}
-                    className="btn-secondary text-sm py-2 px-4 flex items-center gap-2"
+                    className="btn-secondary text-sm py-2 px-4 flex items-center justify-center gap-2"
                   >
                     <Edit size={16} />
                     EDIT
                   </button>
                   <button
                     onClick={() => toggleActive(discount.id, discount.is_active)}
-                    className={`text-sm py-2 px-4 font-display transition-colors ${
+                    className={`text-sm py-2 px-4 font-display transition-colors flex items-center justify-center ${
                       discount.is_active
                         ? 'bg-gray-500 hover:bg-gray-600 text-white'
                         : 'bg-green-500 hover:bg-green-600 text-white'
@@ -441,7 +441,7 @@ export default function AdminDiscountsPage() {
                   </button>
                   <button
                     onClick={() => handleDelete(discount.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-4 font-display flex items-center gap-2 transition-colors"
+                    className="bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-4 font-display flex items-center justify-center gap-2 transition-colors"
                   >
                     <Trash2 size={16} />
                     DELETE

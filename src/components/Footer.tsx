@@ -46,7 +46,7 @@ export default function Footer() {
             </h4>
             <div className="flex gap-6">
               <a 
-                href={process.env.NEXT_PUBLIC_DISCORD_INVITE || '#'} 
+                href={process.env.NEXT_PUBLIC_DISCORD_INVITE || 'https://discord.gg/ag39FaqY'} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-kraken-cyan hover:text-kraken-pink transition-colors"

@@ -17,7 +17,7 @@ export default function Home() {
       <Navigation />
       <Hero />
       <About />
-      <LiveLeaderboard />
+      <LiveLeaderboard mode="home" />
       <UpcomingEvents />
       <FoundersPass />
       <Branding />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2, Calendar, Users, Trophy } from 'lucide-react'
+import { FALLBACK_GAMES, FALLBACK_TRACKS, parseOptionsInput, readLocalDefaultOptions } from '@/lib/adminDefaults'
 
 type Event = {
   id: string
@@ -38,11 +39,18 @@ type EventFormData = {
   is_active: boolean
 }
 
+type SiteSettingRow = {
+  key: string
+  value_text: string | null
+}
+
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
+  const [defaultGames, setDefaultGames] = useState<string[]>(FALLBACK_GAMES)
+  const [defaultTracks, setDefaultTracks] = useState<string[]>(FALLBACK_TRACKS)
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [newImageUrl, setNewImageUrl] = useState('')
   const [formError, setFormError] = useState('')
@@ -53,7 +61,7 @@ export default function AdminEventsPage() {
     title: '',
     description: '',
     event_type: 'race',
-    game: 'assetto_corsa',
+    game: FALLBACK_GAMES[0],
     track: '',
     car_class: '',
     start_date: '',
@@ -66,7 +74,51 @@ export default function AdminEventsPage() {
 
   useEffect(() => {
     fetchEvents()
+    fetchDropdownDefaults()
   }, [])
+
+  const fetchDropdownDefaults = async () => {
+    const localDefaults = readLocalDefaultOptions()
+    if (localDefaults.games.length > 0) {
+      setDefaultGames(localDefaults.games)
+      setFormData((previous) => ({
+        ...previous,
+        game: localDefaults.games.includes(previous.game) ? previous.game : localDefaults.games[0],
+      }))
+    }
+    if (localDefaults.tracks.length > 0) {
+      setDefaultTracks(localDefaults.tracks)
+    }
+
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('key, value_text')
+      .in('key', ['default_games', 'default_tracks'])
+
+    if (!data || error) {
+      return
+    }
+
+    const settings = data as SiteSettingRow[]
+
+    const gamesSetting = settings.find((item) => item.key === 'default_games')
+    const tracksSetting = settings.find((item) => item.key === 'default_tracks')
+
+    const games = gamesSetting?.value_text ? parseOptionsInput(gamesSetting.value_text) : []
+    const tracks = tracksSetting?.value_text ? parseOptionsInput(tracksSetting.value_text) : []
+
+    if (games.length > 0) {
+      setDefaultGames(games)
+      setFormData((previous) => ({
+        ...previous,
+        game: games.includes(previous.game) ? previous.game : games[0],
+      }))
+    }
+
+    if (tracks.length > 0) {
+      setDefaultTracks(tracks)
+    }
+  }
 
   const fetchEvents = async () => {
     setLoading(true)
@@ -244,7 +296,7 @@ export default function AdminEventsPage() {
       title: '',
       description: '',
       event_type: 'race',
-      game: 'assetto_corsa',
+      game: defaultGames[0] || FALLBACK_GAMES[0],
       track: '',
       car_class: '',
       start_date: '',
@@ -351,11 +403,11 @@ export default function AdminEventsPage() {
                   onChange={(e) => setFormData({ ...formData, game: e.target.value })}
                   className="input-field"
                 >
-                  <option value="assetto_corsa">Assetto Corsa</option>
-                  <option value="assetto_corsa_competizione">Assetto Corsa Competizione</option>
-                  <option value="f1_2025">F1 2025</option>
-                  <option value="forza_motorsport">Forza Motorsport</option>
-                  <option value="forza_horizon">Forza Horizon</option>
+                  {defaultGames.map((game) => (
+                    <option key={game} value={game}>
+                      {game.replace(/_/g, ' ').toUpperCase()}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -363,12 +415,18 @@ export default function AdminEventsPage() {
                 <label className="block text-kraken-cyan mb-2 font-display">TRACK *</label>
                 <input
                   type="text"
+                  list="event-track-defaults"
                   required
                   value={formData.track}
                   onChange={(e) => setFormData({ ...formData, track: e.target.value })}
                   className="input-field"
                   placeholder="Spa-Francorchamps"
                 />
+                <datalist id="event-track-defaults">
+                  {defaultTracks.map((track) => (
+                    <option key={track} value={track} />
+                  ))}
+                </datalist>
               </div>
 
               <div>

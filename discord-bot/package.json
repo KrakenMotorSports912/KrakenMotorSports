@@ -1,0 +1,18 @@
+{
+  "name": "kraken-discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Discord bot for Kraken Motorsports events and leaderboard",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "register": "node register-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
