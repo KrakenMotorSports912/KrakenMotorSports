@@ -83,6 +83,25 @@ function LoginContent() {
     setLoading(false)
   }
 
+  const handleGoogleAuth = async () => {
+    setLoading(true)
+    setMessage('')
+
+    const redirectTo = `${window.location.origin}/login`
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    })
+
+    if (error) {
+      setMessage(error.message)
+      setLoading(false)
+      return
+    }
+
+    setLoading(false)
+  }
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     setLoading(true)
@@ -180,6 +199,15 @@ function LoginContent() {
               ? 'DISCORD LINKED'
               : 'ADD DISCORD'
             : 'CONTINUE WITH DISCORD'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleGoogleAuth}
+          disabled={loading || authChecking}
+          className="btn-secondary w-full justify-center inline-flex"
+        >
+          CONTINUE WITH GOOGLE
         </button>
 
         <p className="text-center text-sm text-gray-300">
