@@ -99,7 +99,6 @@ export default function ProfilePage() {
               onChange={handleChange}
               className="input-field"
               placeholder="First name"
-              required
             />
           </div>
           <div>
@@ -111,7 +110,6 @@ export default function ProfilePage() {
               onChange={handleChange}
               className="input-field"
               placeholder="Last name"
-              required
             />
           </div>
           <div>
@@ -134,7 +132,6 @@ export default function ProfilePage() {
               onChange={handleChange}
               className="input-field"
               placeholder="Email"
-              required
             />
           </div>
           <div>
@@ -160,9 +157,12 @@ export default function ProfilePage() {
             />
           </div>
           {message && <p className="text-sm text-gray-300">{message}</p>}
-          <button type="submit" disabled={saving} className="btn-primary w-full justify-center inline-flex">
-            {saving ? "Saving..." : "Save Profile"}
-          </button>
+          <div className="flex gap-4">
+            <button type="submit" disabled={saving} className="btn-primary w-full justify-center inline-flex">
+              {saving ? "Saving..." : "Save Profile"}
+            </button>
+            <button type="button" className="btn-secondary w-full justify-center inline-flex" onClick={() => router.push("/")}>Cancel</button>
+          </div>
         </form>
       </div>
     </main>
