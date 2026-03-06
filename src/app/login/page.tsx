@@ -34,7 +34,7 @@ function LoginContent() {
   const supabase = createClient()
 
   useEffect(() => {
-    const checkSession = async () => {
+    const checkSessionAndMaybeLinkDiscord = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -43,6 +43,24 @@ function LoginContent() {
         setIsAuthenticated(true)
         const linked = hasDiscordIdentity(user as AuthUser)
         setIsDiscordLinked(linked)
+
+        // If ?link_discord=1 and not linked, trigger Discord linking
+        if (searchParams.get('link_discord') === '1' && !linked) {
+          setLoading(true)
+          setMessage('Redirecting to link your Discord account...')
+          const redirectTo = `${window.location.origin}/login?linked=1`
+          const authApi = supabase.auth as unknown as {
+            linkIdentity?: (params: { provider: 'discord'; options?: { redirectTo?: string } }) => Promise<{ error: { message: string } | null }>
+            signInWithOAuth: (params: { provider: 'discord'; options?: { redirectTo?: string } }) => Promise<{ error: { message: string } | null }>
+          }
+          if (typeof authApi.linkIdentity === 'function') {
+            await authApi.linkIdentity({ provider: 'discord', options: { redirectTo } })
+          } else {
+            await authApi.signInWithOAuth({ provider: 'discord', options: { redirectTo } })
+          }
+          // The user will be redirected, so no need to do anything else
+          return
+        }
 
         if (searchParams.get('linked') === '1') {
           setMessage(linked ? 'Discord linked successfully.' : 'Discord sign-in completed.')
@@ -55,7 +73,7 @@ function LoginContent() {
       setAuthChecking(false)
     }
 
-    checkSession()
+    checkSessionAndMaybeLinkDiscord()
   }, [searchParams, supabase.auth])
 
   const handleDiscordAuth = async () => {
@@ -176,7 +194,12 @@ function LoginContent() {
       if (error) {
         setMessage(error.message)
       } else {
-        router.push('/admin')
+        // If user was trying to link Discord, redirect back to trigger linking
+        if (searchParams.get('link_discord') === '1') {
+          router.push('/login?link_discord=1')
+        } else {
+          router.push('/admin')
+        }
       }
     }
 
@@ -186,33 +209,14 @@ function LoginContent() {
   return (
     <main className="min-h-screen bg-kraken-dark flex items-center justify-center px-4 py-16">
       <div className="card w-full max-w-xl">
-        <h1 className="section-title mb-8">{isSignup ? 'CREATE ACCOUNT' : 'ADMIN LOGIN'}</h1>
+        <h1 className="section-title mb-8">{isSignup ? 'CREATE ACCOUNT' : 'LOGIN'}</h1>
 
-        {/* Only show Discord button on signup */}
-        {isSignup && (
-          <button
-            type="button"
-            onClick={handleDiscordAuth}
-            disabled={loading || authChecking || (isAuthenticated && isDiscordLinked)}
-            className="btn-secondary w-full justify-center inline-flex"
-          >
-            {isAuthenticated
-              ? isDiscordLinked
-                ? 'DISCORD LINKED'
-                : 'ADD DISCORD'
-              : 'CONTINUE WITH DISCORD'}
-          </button>
+        {/* Show a message if user is not authenticated and trying to link Discord */}
+        {searchParams.get('link_discord') === '1' && !isAuthenticated && (
+          <div className="text-center text-yellow-300 text-sm mb-4">
+            Please log in to link your Discord account.
+          </div>
         )}
-
-        <p className="text-center text-sm text-gray-300">
-          {authChecking
-            ? 'Checking account status...'
-            : isAuthenticated
-            ? isDiscordLinked
-              ? 'Linked: Discord account connected.'
-              : (isSignup ? 'Not linked yet: add Discord to connect your racing profile.' : '')
-            : (isSignup ? 'Optional: link Discord now or continue with email or phone/password.' : '')}
-        </p>
 
         <div className="text-center text-sm text-gray-400">or use email or phone/password below</div>
 
@@ -316,7 +320,7 @@ export default function LoginPage() {
       fallback={
         <main className="min-h-screen bg-kraken-dark flex items-center justify-center px-4 py-16">
           <div className="card w-full max-w-xl">
-            <h1 className="section-title mb-8">ADMIN LOGIN</h1>
+            <h1 className="section-title mb-8">LOGIN</h1>
             <p className="text-center text-sm text-gray-400">Loading login...</p>
           </div>
         </main>

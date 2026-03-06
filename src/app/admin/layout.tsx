@@ -104,7 +104,7 @@ export default function AdminLayout({
               </span>
             ) : (
               <Link
-                href="/login?link_discord=1"
+                href="/profile"
                 className="text-xs sm:text-sm font-display tracking-wide px-3 py-2 border-2 text-center border-yellow-400 text-yellow-300 bg-yellow-500/10 hover:border-kraken-cyan hover:text-kraken-cyan transition-colors"
               >
                 DISCORD NOT LINKED

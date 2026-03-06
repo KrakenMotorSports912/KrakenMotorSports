@@ -62,7 +62,7 @@ export default function Navigation() {
       ? '/admin'
       : isDiscordLinked
       ? '/submit'
-      : '/login?link_discord=1'
+      : '/profile'
     : '/login'
 
   const accountLabel = isAdmin
