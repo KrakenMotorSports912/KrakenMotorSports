@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, Trophy, Calendar, Tag, Users, LogOut, CalendarClock } from 'lucide-react'
+import { LayoutDashboard, Trophy, Calendar, Tag, Users, LogOut, CalendarClock, SlidersHorizontal } from 'lucide-react'
 
 type AuthUser = {
   app_metadata?: { provider?: string }
@@ -82,6 +82,7 @@ export default function AdminLayout({
     { href: '/admin/events', icon: Calendar, label: 'Events' },
     { href: '/admin/bookings', icon: CalendarClock, label: 'Bookings' },
     { href: '/admin/discounts', icon: Tag, label: 'Discounts' },
+    { href: '/admin/defaults', icon: SlidersHorizontal, label: 'Defaults' },
     { href: '/admin/founders', icon: Users, label: 'Founders Pass' },
   ]
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 type ImageCarouselProps = {
@@ -59,10 +60,12 @@ export default function ImageCarousel({ images, alt, autoPlay = true, interval =
             <p className="text-gray-500 text-sm">Image failed to load</p>
           </div>
         ) : (
-          <img
+          <Image
             src={getImageSrc(images[0])}
             alt={alt}
-            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
             onError={() => markFailed(0)}
           />
         )}
@@ -78,10 +81,12 @@ export default function ImageCarousel({ images, alt, autoPlay = true, interval =
           <p className="text-gray-500 text-sm">Image failed to load</p>
         </div>
       ) : (
-        <img
+        <Image
           src={getImageSrc(images[currentIndex])}
           alt={`${alt} - ${currentIndex + 1}`}
-          className="w-full h-full object-cover transition-opacity duration-500"
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="object-cover transition-opacity duration-500"
           onError={() => markFailed(currentIndex)}
         />
       )}

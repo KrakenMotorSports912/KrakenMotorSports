@@ -18,6 +18,7 @@ const commands = [
       option
         .setName('game')
         .setDescription('Filter events by game (example: f1_2025)')
+        .setAutocomplete(true)
         .setRequired(false)
     )
     .addIntegerOption((option) =>
@@ -36,14 +37,14 @@ const commands = [
         .setName('game')
         .setDescription('Filter by game (example: assetto_corsa_competizione)')
         .setAutocomplete(true)
-        .setRequired(false)
+        .setRequired(true)
     )
     .addStringOption((option) =>
       option
         .setName('track')
         .setDescription('Filter by track name')
         .setAutocomplete(true)
-        .setRequired(false)
+        .setRequired(true)
     )
     .addStringOption((option) =>
       option

@@ -7,6 +7,8 @@
 3. **Get Your Keys**: Go to Project Settings → API to find your keys
 4. **Run SQL Below**: Copy the SQL schema below and run it in the Supabase SQL Editor
 
+If your database is already live and still uses the old hardcoded game constraint, run `SUPABASE_FLEXIBLE_GAMES_UPDATE.sql` once to allow adding/removing games without schema edits.
+
 > **✨ NEW**: This setup includes automatic profile creation! When users sign up, a profile record is automatically created in the database via a trigger on `auth.users`.
 
 ---
@@ -48,7 +50,7 @@ CREATE TABLE leaderboard_entries (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   driver_name TEXT NOT NULL,
-  game TEXT NOT NULL CHECK (game IN ('assetto_corsa', 'assetto_corsa_competizione', 'f1_2025', 'forza_motorsport', 'forza_horizon', 'other')),
+  game TEXT NOT NULL CHECK (length(trim(game)) > 0),
   track TEXT NOT NULL,
   car TEXT NOT NULL,
   lap_time_ms INTEGER NOT NULL, -- time in milliseconds

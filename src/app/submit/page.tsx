@@ -2,8 +2,14 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { FALLBACK_CARS, FALLBACK_GAMES, FALLBACK_TRACKS, parseOptionsInput, readLocalDefaultOptions } from '@/lib/adminDefaults'
+import {
+  FALLBACK_CARS,
+  FALLBACK_GAMES,
+  FALLBACK_TRACKS,
+  flattenGameCatalog,
+  readLocalDefaultGameCatalog,
+  readLocalDefaultOptions,
+} from '@/lib/adminDefaults'
 
 type EventOption = {
   id: string
@@ -13,9 +19,9 @@ type EventOption = {
   car_class: string | null
 }
 
-type SiteSettingRow = {
-  key: string
-  value_text: string | null
+type PublicOption = {
+  value: string
+  name: string
 }
 
 const CAR_CLASS_SUGGESTIONS: Record<string, string[]> = {
@@ -47,6 +53,7 @@ export default function SubmitPage() {
   const [driverName, setDriverName] = useState('')
   const [selectedEventId, setSelectedEventId] = useState('')
   const [game, setGame] = useState('')
+  const [customGame, setCustomGame] = useState('')
   const [track, setTrack] = useState('')
   const [car, setCar] = useState('')
   const [lapTime, setLapTime] = useState('')
@@ -55,6 +62,8 @@ export default function SubmitPage() {
   const [defaultGames, setDefaultGames] = useState<string[]>(FALLBACK_GAMES)
   const [defaultTracks, setDefaultTracks] = useState<string[]>(FALLBACK_TRACKS)
   const [defaultCars, setDefaultCars] = useState<string[]>(FALLBACK_CARS)
+  const [gameScopedTracks, setGameScopedTracks] = useState<string[]>([])
+  const [gameScopedCars, setGameScopedCars] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [submissionId, setSubmissionId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -63,14 +72,27 @@ export default function SubmitPage() {
   const selectedEvent = events.find((item) => item.id === selectedEventId)
   const eventCarClass = selectedEvent?.car_class || null
   const eventCarSuggestions = getCarSuggestions(eventCarClass)
+  const eventTracksForSelectedGame = events
+    .filter((item) => !game || item.game === game)
+    .map((item) => item.track)
+    .filter(Boolean)
+  const catalogTracksForSelectedGame = game ? gameScopedTracks : defaultTracks
+  const catalogCarsForSelectedGame = game ? gameScopedCars : defaultCars
   const gameOptions = Array.from(new Set([...defaultGames, ...events.map((item) => item.game).filter(Boolean)])).sort()
-  const trackSuggestions = Array.from(new Set([...defaultTracks, ...events.map((item) => item.track).filter(Boolean)])).sort()
-  const carSuggestions = Array.from(new Set([...defaultCars, ...eventCarSuggestions])).sort()
+  const trackSuggestions = Array.from(new Set([...catalogTracksForSelectedGame, ...eventTracksForSelectedGame])).sort()
+  const carSuggestions = Array.from(new Set([...catalogCarsForSelectedGame, ...eventCarSuggestions])).sort()
 
   useEffect(() => {
     const fetchOptions = async () => {
-      const supabase = createClient()
       const localDefaults = readLocalDefaultOptions()
+      const localCatalog = readLocalDefaultGameCatalog()
+
+      if (localCatalog.length > 0) {
+        const localFlattened = flattenGameCatalog(localCatalog)
+        setDefaultGames(Array.from(new Set([...FALLBACK_GAMES, ...localFlattened.games])).sort())
+        setDefaultTracks(Array.from(new Set([...FALLBACK_TRACKS, ...localFlattened.tracks])).sort())
+        setDefaultCars(Array.from(new Set([...FALLBACK_CARS, ...localFlattened.cars])).sort())
+      }
 
       if (localDefaults.games.length > 0) {
         setDefaultGames(Array.from(new Set([...FALLBACK_GAMES, ...localDefaults.games])).sort())
@@ -82,52 +104,80 @@ export default function SubmitPage() {
         setDefaultCars(Array.from(new Set([...FALLBACK_CARS, ...localDefaults.cars])).sort())
       }
 
-      const [{ data: eventsData }, { data: defaultsData }] = await Promise.all([
-        supabase
-          .from('events')
-          .select('id,title,game,track,car_class')
-          .eq('is_active', true)
-          .order('start_date', { ascending: false })
-          .limit(25),
-        supabase
-          .from('site_settings')
-          .select('key, value_text')
-          .in('key', ['default_games', 'default_tracks', 'default_cars']),
-      ])
+      try {
+        const [eventsRes, gamesRes, tracksRes, carsRes] = await Promise.all([
+          fetch('/api/public/events?limit=25'),
+          fetch('/api/public/leaderboard/options?type=games&limit=100'),
+          fetch('/api/public/leaderboard/options?type=tracks&limit=100'),
+          fetch('/api/public/leaderboard/options?type=cars&limit=100'),
+        ])
 
-      if (eventsData) {
-        setEvents(eventsData as EventOption[])
-      }
+        const [eventsPayload, gamesPayload, tracksPayload, carsPayload] = await Promise.all([
+          eventsRes.ok ? eventsRes.json() : Promise.resolve({ events: [] }),
+          gamesRes.ok ? gamesRes.json() : Promise.resolve({ options: [] }),
+          tracksRes.ok ? tracksRes.json() : Promise.resolve({ options: [] }),
+          carsRes.ok ? carsRes.json() : Promise.resolve({ options: [] }),
+        ])
 
-      const settings = (defaultsData || []) as SiteSettingRow[]
-      const gamesSetting = parseOptionsInput(settings.find((item) => item.key === 'default_games')?.value_text || '')
-      const tracksSetting = parseOptionsInput(settings.find((item) => item.key === 'default_tracks')?.value_text || '')
-      const carsSetting = parseOptionsInput(settings.find((item) => item.key === 'default_cars')?.value_text || '')
+        const nextEvents = (eventsPayload.events || []) as EventOption[]
+        const gamesFromApi = ((gamesPayload.options || []) as PublicOption[]).map((option) => option.value).filter(Boolean)
+        const tracksFromApi = ((tracksPayload.options || []) as PublicOption[]).map((option) => option.value).filter(Boolean)
+        const carsFromApi = ((carsPayload.options || []) as PublicOption[]).map((option) => option.value).filter(Boolean)
 
-      if (gamesSetting.length > 0) {
-        setDefaultGames(Array.from(new Set([...FALLBACK_GAMES, ...gamesSetting])).sort())
-      }
+        setEvents(nextEvents)
+        setDefaultGames(Array.from(new Set([...FALLBACK_GAMES, ...gamesFromApi, ...localDefaults.games])).sort())
+        setDefaultTracks(Array.from(new Set([...FALLBACK_TRACKS, ...tracksFromApi, ...localDefaults.tracks])).sort())
+        setDefaultCars(Array.from(new Set([...FALLBACK_CARS, ...carsFromApi, ...localDefaults.cars])).sort())
 
-      if (tracksSetting.length > 0) {
-        setDefaultTracks(Array.from(new Set([...FALLBACK_TRACKS, ...tracksSetting])).sort())
-      }
-
-      if (carsSetting.length > 0) {
-        setDefaultCars(Array.from(new Set([...FALLBACK_CARS, ...carsSetting])).sort())
-      }
-
-      if (!game && gamesSetting.length > 0) {
-        setGame(gamesSetting[0])
+        if (!game && gamesFromApi.length > 0) {
+          setGame(gamesFromApi[0])
+        }
+      } catch {
+        // Keep local fallback options if public API call fails.
       }
     }
 
     fetchOptions()
   }, [])
 
+  useEffect(() => {
+    const fetchGameScopedOptions = async () => {
+      if (!game) {
+        setGameScopedTracks(defaultTracks)
+        setGameScopedCars(defaultCars)
+        return
+      }
+
+      try {
+        const [tracksRes, carsRes] = await Promise.all([
+          fetch(`/api/public/leaderboard/options?type=tracks&limit=100&game=${encodeURIComponent(game)}`),
+          fetch(`/api/public/leaderboard/options?type=cars&limit=100&game=${encodeURIComponent(game)}`),
+        ])
+
+        const [tracksPayload, carsPayload] = await Promise.all([
+          tracksRes.ok ? tracksRes.json() : Promise.resolve({ options: [] }),
+          carsRes.ok ? carsRes.json() : Promise.resolve({ options: [] }),
+        ])
+
+        const tracks = ((tracksPayload.options || []) as PublicOption[]).map((option) => option.value).filter(Boolean)
+        const cars = ((carsPayload.options || []) as PublicOption[]).map((option) => option.value).filter(Boolean)
+
+        setGameScopedTracks(tracks.length > 0 ? tracks : defaultTracks)
+        setGameScopedCars(cars.length > 0 ? cars : defaultCars)
+      } catch {
+        setGameScopedTracks(defaultTracks)
+        setGameScopedCars(defaultCars)
+      }
+    }
+
+    fetchGameScopedOptions()
+  }, [game, defaultTracks, defaultCars])
+
   const resetForm = (options?: { clearSubmitted?: boolean }) => {
     setDriverName('')
     setSelectedEventId('')
     setGame('')
+    setCustomGame('')
     setTrack('')
     setCar('')
     setLapTime('')
@@ -146,6 +196,14 @@ export default function SubmitPage() {
     setErrorMessage(null)
     setSubmitted(false)
 
+    if (game === 'other' && !customGame.trim()) {
+      setErrorMessage('Please enter your game name when selecting Other.')
+      setSubmitting(false)
+      return
+    }
+
+    const gameValue = game === 'other' ? `other (${customGame.trim()})` : game
+
     const response = await fetch('/api/submit-time', {
       method: 'POST',
       headers: {
@@ -154,7 +212,7 @@ export default function SubmitPage() {
       body: JSON.stringify({
         driverName,
         selectedEventId,
-        game,
+        game: gameValue,
         track,
         car,
         lapTime,
@@ -174,6 +232,19 @@ export default function SubmitPage() {
     setSubmitted(true)
     resetForm()
     setSubmitting(false)
+
+    const from = new URLSearchParams(window.location.search).get('from')
+    if (from === 'home') {
+      router.push('/#leaderboard')
+      return
+    }
+
+    if (from === 'leaderboards') {
+      router.push('/leaderboards')
+      return
+    }
+
+    router.push('/leaderboards')
   }
 
   const handleCancel = () => {
@@ -234,7 +305,13 @@ export default function SubmitPage() {
           <select
             className="input-field"
             value={game}
-            onChange={(event) => setGame(event.target.value)}
+            onChange={(event) => {
+              const nextGame = event.target.value
+              setGame(nextGame)
+              if (nextGame !== 'other') {
+                setCustomGame('')
+              }
+            }}
             required
           >
             <option value="">Select Game</option>
@@ -243,7 +320,18 @@ export default function SubmitPage() {
                 {toGameLabel(gameOption)}
               </option>
             ))}
+            <option value="other">Other</option>
           </select>
+
+          {game === 'other' && (
+            <input
+              className="input-field"
+              placeholder="Enter your game (example: mario_kart_wii)"
+              value={customGame}
+              onChange={(event) => setCustomGame(event.target.value)}
+              required
+            />
+          )}
 
           <input
             className="input-field"

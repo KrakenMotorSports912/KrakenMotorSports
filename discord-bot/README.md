@@ -60,7 +60,7 @@ Use these slash commands in your server:
 
 - `/events`
 - `/events game:assetto_corsa_competizione limit:5`
-- `/leaderboard`
+- `/leaderboard game:f1_2025 track:monza`
 - `/leaderboard game:f1_2025 limit:10`
 - `/leaderboard game:f1_2025 track:monza car:mercedes-amg gt3 limit:10`
 - `/leaderboard event_id:<event_uuid> sort_by:submitted_at order:desc`
@@ -121,5 +121,6 @@ Autocomplete support:
 - `/profile` autocompletes `driver_name` and `game`.
 - `/season_leaderboard` autocompletes `game`, `track`, and `car`.
 - `/queue_join`, `/queue_list`, and `/queue_status` autocomplete `game`.
-- `game` and `track` suggestions include Admin Hub presets (`default_games` / `default_tracks`) plus live leaderboard data.
-- This means updates you make in Admin defaults are reflected in Discord suggestions automatically.
+- `game`, `track`, and `car` suggestions include Admin defaults plus live leaderboard data.
+- Track/car suggestions can scope to the selected game when provided.
+- This means updates you make in Admin Defaults hierarchy are reflected in Discord suggestions automatically.

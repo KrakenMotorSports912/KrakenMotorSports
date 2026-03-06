@@ -28,6 +28,32 @@ if (!token) {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] })
 
+const normalizeGameKey = (value = '') =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+
+const GAME_KEY_ALIASES = {
+  mariokart: 'mario_kart_wii',
+  mario_kart: 'mario_kart_wii',
+  mk_wii: 'mario_kart_wii',
+  mkwii: 'mario_kart_wii',
+  forza_horizon: 'forza_horizon_5',
+  forza_4: 'forza_horizon_4',
+  forza_5: 'forza_horizon_5',
+  fh4: 'forza_horizon_4',
+  fh5: 'forza_horizon_5',
+  forza_motorsport: 'forza_motorsport_2023',
+  forza_motorsport_8: 'forza_motorsport_2023',
+  fm7: 'forza_motorsport_7',
+}
+
+const normalizeGameForApi = (value) => {
+  const normalized = normalizeGameKey(value)
+  return GAME_KEY_ALIASES[normalized] || normalized
+}
+
 const toTitleCase = (value) =>
   value
     .split('_')
@@ -146,7 +172,7 @@ const isQueueStaff = (interaction) => {
 const fetchEvents = async (limit = 5, game) => {
   const url = new URL('/api/public/events', apiBaseUrl)
   url.searchParams.set('limit', String(limit))
-  if (game) url.searchParams.set('game', game)
+  if (game) url.searchParams.set('game', normalizeGameForApi(game))
 
   const response = await fetch(url)
   if (!response.ok) throw new Error(`Events API returned ${response.status}`)
@@ -155,11 +181,13 @@ const fetchEvents = async (limit = 5, game) => {
   return payload.events || []
 }
 
-const fetchLeaderboardOptions = async (type, queryText) => {
+const fetchLeaderboardOptions = async (type, queryText, game, defaultsOnly = false) => {
   const url = new URL('/api/public/leaderboard/options', apiBaseUrl)
   url.searchParams.set('type', type)
   url.searchParams.set('limit', '25')
   if (queryText) url.searchParams.set('q', queryText)
+  if (game) url.searchParams.set('game', normalizeGameForApi(game))
+  if (defaultsOnly) url.searchParams.set('defaults_only', 'true')
 
   const response = await fetch(url)
   if (!response.ok) throw new Error(`Leaderboard options API returned ${response.status}`)
@@ -171,7 +199,7 @@ const fetchLeaderboardOptions = async (type, queryText) => {
 const fetchLeaderboard = async ({ limit = 5, game, track, car, eventId } = {}) => {
   const url = new URL('/api/public/leaderboard', apiBaseUrl)
   url.searchParams.set('limit', String(limit))
-  if (game) url.searchParams.set('game', game)
+  if (game) url.searchParams.set('game', normalizeGameForApi(game))
   if (track) url.searchParams.set('track', track)
   if (car) url.searchParams.set('car', car)
   if (eventId) url.searchParams.set('event_id', eventId)
@@ -554,6 +582,9 @@ client.on('interactionCreate', async (interaction) => {
     try {
       const focused = interaction.options.getFocused(true)
       const commandOptionTypeMap = {
+        events: {
+          game: 'games',
+        },
         leaderboard: {
           game: 'games',
           track: 'tracks',
@@ -598,7 +629,16 @@ client.on('interactionCreate', async (interaction) => {
         return
       }
 
-      const options = await fetchLeaderboardOptions(mappedType, focused.value)
+      const selectedGameRaw = interaction.options.getString('game') || undefined
+      const selectedGame = selectedGameRaw ? normalizeGameForApi(selectedGameRaw) : undefined
+      const shouldScopeByGame = focused.name === 'track' || focused.name === 'car'
+      const defaultsOnly = mappedType === 'games' || mappedType === 'tracks' || mappedType === 'cars'
+      const options = await fetchLeaderboardOptions(
+        mappedType,
+        focused.value,
+        shouldScopeByGame ? selectedGame : undefined,
+        defaultsOnly
+      )
       const choices = options.slice(0, 25).map((option) => ({ name: option.name, value: option.value }))
       await interaction.respond(choices)
       return
@@ -668,8 +708,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.commandName === 'leaderboard') {
       await interaction.deferReply()
 
-      const game = interaction.options.getString('game')
-      const track = interaction.options.getString('track')
+      const game = normalizeGameForApi(interaction.options.getString('game', true))
+      const track = interaction.options.getString('track', true)
       const car = interaction.options.getString('car')
       const eventId = interaction.options.getString('event_id')
       const sortBy = interaction.options.getString('sort_by') || 'lap_time'
@@ -736,7 +776,7 @@ client.on('interactionCreate', async (interaction) => {
       const game = interaction.options.getString('game')
       const response = await fetchLeaderboard({
         limit: 100,
-        game,
+        game: game ? normalizeGameForApi(game) : undefined,
       })
 
       const rankedEntries = sortLeaderboardEntries(response.leaderboard, 'lap_time', 'asc')
@@ -791,7 +831,7 @@ client.on('interactionCreate', async (interaction) => {
 
       const response = await fetchLeaderboard({
         limit: 100,
-        game,
+        game: game ? normalizeGameForApi(game) : undefined,
         track,
         car,
       })

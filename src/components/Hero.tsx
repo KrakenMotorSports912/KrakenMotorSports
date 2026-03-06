@@ -62,7 +62,7 @@ export default function Hero() {
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <a 
-              href={process.env.NEXT_PUBLIC_DISCORD_INVITE || 'https://discord.gg/ag39FaqY'} 
+              href={process.env.NEXT_PUBLIC_DISCORD_INVITE || 'https://discord.gg/FDHMdcRt'} 
               target="_blank" 
               rel="noopener noreferrer"
               className="btn-secondary flex items-center gap-2"

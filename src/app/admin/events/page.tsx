@@ -1,9 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Edit, Trash2, Calendar, Users, Trophy } from 'lucide-react'
-import { FALLBACK_GAMES, FALLBACK_TRACKS, parseOptionsInput, readLocalDefaultOptions } from '@/lib/adminDefaults'
+import {
+  FALLBACK_CARS,
+  FALLBACK_GAMES,
+  FALLBACK_TRACKS,
+  GameDefaultsNode,
+  buildCatalogFromFlatDefaults,
+  flattenGameCatalog,
+  parseDefaultGameCatalog,
+  parseOptionsInput,
+  readLocalDefaultGameCatalog,
+  readLocalDefaultOptions,
+} from '@/lib/adminDefaults'
 
 type Event = {
   id: string
@@ -51,10 +63,16 @@ export default function AdminEventsPage() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [defaultGames, setDefaultGames] = useState<string[]>(FALLBACK_GAMES)
   const [defaultTracks, setDefaultTracks] = useState<string[]>(FALLBACK_TRACKS)
+  const [defaultCatalog, setDefaultCatalog] = useState<GameDefaultsNode[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [newImageUrl, setNewImageUrl] = useState('')
   const [formError, setFormError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hiddenEventSections, setHiddenEventSections] = useState({
+    current: false,
+    upcoming: false,
+    past: false,
+  })
   const supabase = createClient()
 
   const [formData, setFormData] = useState<EventFormData>({
@@ -72,6 +90,10 @@ export default function AdminEventsPage() {
     is_active: true,
   })
 
+  const selectedGameDefaults = formData.game ? defaultCatalog.find((item) => item.game === formData.game) : null
+  const trackOptionsForSelectedGame = selectedGameDefaults?.tracks?.length ? selectedGameDefaults.tracks : defaultTracks
+  const carOptionsForSelectedGame = selectedGameDefaults?.cars?.length ? selectedGameDefaults.cars : FALLBACK_CARS
+
   useEffect(() => {
     fetchEvents()
     fetchDropdownDefaults()
@@ -79,6 +101,15 @@ export default function AdminEventsPage() {
 
   const fetchDropdownDefaults = async () => {
     const localDefaults = readLocalDefaultOptions()
+    const localCatalog = readLocalDefaultGameCatalog()
+
+    if (localCatalog.length > 0) {
+      setDefaultCatalog(localCatalog)
+      const localFlattened = flattenGameCatalog(localCatalog)
+      setDefaultGames(localFlattened.games.length > 0 ? localFlattened.games : FALLBACK_GAMES)
+      setDefaultTracks(localFlattened.tracks.length > 0 ? localFlattened.tracks : FALLBACK_TRACKS)
+    }
+
     if (localDefaults.games.length > 0) {
       setDefaultGames(localDefaults.games)
     }
@@ -89,7 +120,7 @@ export default function AdminEventsPage() {
     const { data, error } = await supabase
       .from('site_settings')
       .select('key, value_text')
-      .in('key', ['default_games', 'default_tracks'])
+      .in('key', ['default_games', 'default_tracks', 'default_cars', 'default_game_catalog'])
 
     if (!data || error) {
       return
@@ -99,17 +130,22 @@ export default function AdminEventsPage() {
 
     const gamesSetting = settings.find((item) => item.key === 'default_games')
     const tracksSetting = settings.find((item) => item.key === 'default_tracks')
+    const carsSetting = settings.find((item) => item.key === 'default_cars')
+    const catalogSetting = settings.find((item) => item.key === 'default_game_catalog')
 
     const games = gamesSetting?.value_text ? parseOptionsInput(gamesSetting.value_text) : []
     const tracks = tracksSetting?.value_text ? parseOptionsInput(tracksSetting.value_text) : []
+    const cars = carsSetting?.value_text ? parseOptionsInput(carsSetting.value_text) : []
+    const parsedCatalog = parseDefaultGameCatalog(catalogSetting?.value_text || '')
+    const catalog = parsedCatalog.length > 0 ? parsedCatalog : buildCatalogFromFlatDefaults(games, tracks, cars)
+    const flattenedCatalog = flattenGameCatalog(catalog)
 
-    if (games.length > 0) {
-      setDefaultGames(games)
+    if (catalog.length > 0) {
+      setDefaultCatalog(catalog)
     }
 
-    if (tracks.length > 0) {
-      setDefaultTracks(tracks)
-    }
+    setDefaultGames(Array.from(new Set([...FALLBACK_GAMES, ...flattenedCatalog.games, ...localDefaults.games])).sort())
+    setDefaultTracks(Array.from(new Set([...FALLBACK_TRACKS, ...flattenedCatalog.tracks, ...localDefaults.tracks])).sort())
   }
 
   const fetchEvents = async () => {
@@ -333,6 +369,123 @@ export default function AdminEventsPage() {
     }
   }
 
+  const now = new Date()
+  const currentEvents = events.filter((event) => {
+    const start = new Date(event.start_date)
+    const end = new Date(event.end_date)
+    return start <= now && end >= now
+  })
+  const upcomingEvents = events.filter((event) => new Date(event.start_date) > now)
+  const pastEvents = events.filter((event) => new Date(event.end_date) < now)
+
+  const toggleEventSection = (key: 'current' | 'upcoming' | 'past') => {
+    setHiddenEventSections((previous) => ({ ...previous, [key]: !previous[key] }))
+  }
+
+  const renderEventCard = (event: Event) => (
+    <div key={event.id} className="card">
+      <div className="flex justify-between items-start">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-3 mb-2">
+            <h3 className="text-2xl font-display text-white break-words">{event.title}</h3>
+            <span className={`px-3 py-1 text-xs font-display ${
+              event.is_active ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+            }`}>
+              {event.is_active ? 'ACTIVE' : 'INACTIVE'}
+            </span>
+            <span className="px-3 py-1 text-xs font-display bg-purple-500/20 text-purple-400">
+              {event.event_type.toUpperCase().replace('_', ' ')}
+            </span>
+          </div>
+
+          {event.description && (
+            <p className="text-gray-300 mb-3 break-words">{event.description}</p>
+          )}
+
+          <div className="grid md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-gray-400">Game</p>
+              <p className="text-white break-words">{event.game.replace('_', ' ').toUpperCase()}</p>
+            </div>
+            <div>
+              <p className="text-gray-400">Track</p>
+              <p className="text-white break-words">{event.track}</p>
+            </div>
+            <div>
+              <p className="text-gray-400">Date</p>
+              <p className="text-white">
+                {new Date(event.start_date).toLocaleDateString()} - {new Date(event.end_date).toLocaleDateString()}
+              </p>
+            </div>
+            {event.prize && (
+              <div>
+                <p className="text-gray-400">Prize</p>
+                <p className="text-kraken-pink break-words">{event.prize}</p>
+              </div>
+            )}
+            {event.max_participants && (
+              <div>
+                <p className="text-gray-400">Participants</p>
+                <p className="text-white">{event.current_participants} / {event.max_participants}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 ml-4">
+          <button
+            onClick={() => handleEdit(event)}
+            className="btn-secondary text-sm py-2 px-4 flex items-center gap-2"
+          >
+            <Edit size={16} />
+            EDIT
+          </button>
+          <button
+            onClick={() => toggleActive(event.id, event.is_active)}
+            className={`text-sm py-2 px-4 font-display transition-colors ${
+              event.is_active
+                ? 'bg-gray-500 hover:bg-gray-600 text-white'
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
+          >
+            {event.is_active ? 'DEACTIVATE' : 'ACTIVATE'}
+          </button>
+          <button
+            onClick={() => handleDelete(event.id)}
+            className="bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-4 font-display flex items-center gap-2 transition-colors"
+          >
+            <Trash2 size={16} />
+            DELETE
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderEventSection = (title: string, key: 'current' | 'upcoming' | 'past', items: Event[]) => (
+    <div className="space-y-4 mb-8">
+      <div className="flex items-center justify-between">
+        <h3 className="text-2xl font-display text-kraken-cyan">{title} EVENTS</h3>
+        <button
+          type="button"
+          className="btn-secondary px-4 py-2 text-sm"
+          onClick={() => toggleEventSection(key)}
+        >
+          {hiddenEventSections[key] ? 'SHOW' : 'HIDE'}
+        </button>
+      </div>
+      {!hiddenEventSections[key] && (
+        items.length === 0 ? (
+          <div className="card text-center py-8 text-gray-400">No {title.toLowerCase()} events.</div>
+        ) : (
+          <div className="space-y-4">
+            {items.map((event) => renderEventCard(event))}
+          </div>
+        )
+      )}
+    </div>
+  )
+
   return (
     <section>
       <div className="flex justify-between items-start mb-6">
@@ -414,7 +567,7 @@ export default function AdminEventsPage() {
                   placeholder="Optional"
                 />
                 <datalist id="event-track-defaults">
-                  {defaultTracks.map((track) => (
+                  {trackOptionsForSelectedGame.map((track) => (
                     <option key={track} value={track} />
                   ))}
                 </datalist>
@@ -425,10 +578,16 @@ export default function AdminEventsPage() {
                 <input
                   type="text"
                   value={formData.car_class}
+                  list="event-car-defaults"
                   onChange={(e) => setFormData({ ...formData, car_class: e.target.value })}
                   className="input-field"
                   placeholder="GT3, LMP1, etc."
                 />
+                <datalist id="event-car-defaults">
+                  {carOptionsForSelectedGame.map((car) => (
+                    <option key={car} value={car} />
+                  ))}
+                </datalist>
               </div>
 
               <div>
@@ -527,7 +686,15 @@ export default function AdminEventsPage() {
                   <div className="space-y-2">
                     {imageUrls.map((url, index) => (
                       <div key={index} className="flex items-center gap-2 bg-kraken-card p-3 rounded">
-                        <img src={url} alt={`Event image ${index + 1}`} className="w-16 h-16 object-cover rounded" />
+                        <div className="relative w-16 h-16 rounded overflow-hidden shrink-0">
+                          <Image
+                            src={url}
+                            alt={`Event image ${index + 1}`}
+                            fill
+                            sizes="64px"
+                            className="object-cover"
+                          />
+                        </div>
                         <span className="text-gray-400 text-sm flex-1 truncate">{url}</span>
                         <div className="flex gap-1">
                           <button
@@ -602,87 +769,11 @@ export default function AdminEventsPage() {
           <p className="text-gray-400">No events created yet</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {events.map((event) => (
-            <div key={event.id} className="card">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-2xl font-display text-white">{event.title}</h3>
-                    <span className={`px-3 py-1 text-xs font-display ${
-                      event.is_active ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
-                    }`}>
-                      {event.is_active ? 'ACTIVE' : 'INACTIVE'}
-                    </span>
-                    <span className="px-3 py-1 text-xs font-display bg-purple-500/20 text-purple-400">
-                      {event.event_type.toUpperCase().replace('_', ' ')}
-                    </span>
-                  </div>
-
-                  {event.description && (
-                    <p className="text-gray-300 mb-3">{event.description}</p>
-                  )}
-
-                  <div className="grid md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-400">Game</p>
-                      <p className="text-white">{event.game.replace('_', ' ').toUpperCase()}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">Track</p>
-                      <p className="text-white">{event.track}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">Date</p>
-                      <p className="text-white">
-                        {new Date(event.start_date).toLocaleDateString()} - {new Date(event.end_date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    {event.prize && (
-                      <div>
-                        <p className="text-gray-400">Prize</p>
-                        <p className="text-kraken-pink">{event.prize}</p>
-                      </div>
-                    )}
-                    {event.max_participants && (
-                      <div>
-                        <p className="text-gray-400">Participants</p>
-                        <p className="text-white">{event.current_participants} / {event.max_participants}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 ml-4">
-                  <button
-                    onClick={() => handleEdit(event)}
-                    className="btn-secondary text-sm py-2 px-4 flex items-center gap-2"
-                  >
-                    <Edit size={16} />
-                    EDIT
-                  </button>
-                  <button
-                    onClick={() => toggleActive(event.id, event.is_active)}
-                    className={`text-sm py-2 px-4 font-display transition-colors ${
-                      event.is_active
-                        ? 'bg-gray-500 hover:bg-gray-600 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
-                    }`}
-                  >
-                    {event.is_active ? 'DEACTIVATE' : 'ACTIVATE'}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(event.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-4 font-display flex items-center gap-2 transition-colors"
-                  >
-                    <Trash2 size={16} />
-                    DELETE
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <>
+          {renderEventSection('Current', 'current', currentEvents)}
+          {renderEventSection('Upcoming', 'upcoming', upcomingEvents)}
+          {renderEventSection('Past', 'past', pastEvents)}
+        </>
       )}
     </section>
   )

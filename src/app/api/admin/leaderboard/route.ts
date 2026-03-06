@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
 
+type EventWindow = {
+  id: string
+  title: string
+  game: string
+  track: string
+  start_date: string
+  end_date: string
+}
+
+const findMatchingEventTitle = (entry: { game: string; track: string; created_at?: string }, events: EventWindow[]) => {
+  const createdAtMs = entry.created_at ? new Date(entry.created_at).getTime() : NaN
+  if (!Number.isFinite(createdAtMs)) {
+    return ''
+  }
+
+  const match = events.find((eventItem) => {
+    const startMs = new Date(eventItem.start_date).getTime()
+    const endMs = new Date(eventItem.end_date).getTime()
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+      return false
+    }
+
+    return eventItem.game === entry.game && eventItem.track === entry.track && createdAtMs >= startMs && createdAtMs <= endMs
+  })
+
+  return match?.title || ''
+}
+
 const getServiceClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -65,13 +93,13 @@ export async function GET(request: NextRequest) {
     const sortBy = url.searchParams.get('sortBy') || 'created_at'
     const sortDirection = url.searchParams.get('sortDirection') === 'asc' ? 'asc' : 'desc'
 
-    const allowedSortBy = new Set(['created_at', 'lap_time_ms', 'driver_name', 'track', 'game'])
+    const allowedSortBy = new Set(['created_at', 'lap_time_ms', 'driver_name', 'track', 'game', 'event'])
     const safeSortBy = allowedSortBy.has(sortBy) ? sortBy : 'created_at'
 
     let query = serviceClient
       .from('leaderboard_entries')
       .select('*')
-      .order(safeSortBy as 'created_at', { ascending: sortDirection === 'asc' })
+      .order((safeSortBy === 'event' ? 'created_at' : safeSortBy) as 'created_at', { ascending: sortDirection === 'asc' })
 
     if (filter !== 'all') {
       query = query.eq('status', filter as 'pending' | 'approved' | 'rejected')
@@ -95,7 +123,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ entries: data || [] })
+    const entries = data || []
+
+    if (safeSortBy === 'event') {
+      const { data: eventsData, error: eventsError } = await serviceClient
+        .from('events')
+        .select('id,title,game,track,start_date,end_date')
+        .order('start_date', { ascending: true })
+
+      if (!eventsError && eventsData) {
+        const events = eventsData as EventWindow[]
+        const sorted = [...entries]
+          .map((entry) => ({
+            ...entry,
+            event_title: findMatchingEventTitle(entry, events),
+          }))
+          .sort((left, right) => {
+            const leftTitle = left.event_title || ''
+            const rightTitle = right.event_title || ''
+            if (leftTitle !== rightTitle) {
+              const compare = leftTitle.localeCompare(rightTitle)
+              return sortDirection === 'asc' ? compare : -compare
+            }
+
+            const leftTime = new Date(left.created_at).getTime()
+            const rightTime = new Date(right.created_at).getTime()
+            return sortDirection === 'asc' ? leftTime - rightTime : rightTime - leftTime
+          })
+
+        return NextResponse.json({ entries: sorted })
+      }
+    }
+
+    return NextResponse.json({ entries })
   } catch (error) {
     return NextResponse.json(
       {

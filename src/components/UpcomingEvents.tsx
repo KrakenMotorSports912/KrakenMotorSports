@@ -25,6 +25,11 @@ type Event = {
 export default function UpcomingEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [hiddenSections, setHiddenSections] = useState({
+    current: false,
+    upcoming: false,
+    past: true,
+  })
 
   useEffect(() => {
     fetchEvents()
@@ -36,9 +41,8 @@ export default function UpcomingEvents() {
       .from('events')
       .select('*')
       .eq('is_active', true)
-      .gte('end_date', new Date().toISOString())
       .order('start_date', { ascending: true })
-      .limit(3)
+      .limit(60)
 
     if (!error && data) {
       setEvents(data)
@@ -49,12 +53,105 @@ export default function UpcomingEvents() {
   const getEventTypeColor = (type: string) => {
     const colors: Record<string, string> = {
       tournament: 'bg-kraken-pink',
-      race: 'bg-k raken-cyan',
+      race: 'bg-kraken-cyan',
       time_trial: 'bg-blue-500',
       special: 'bg-purple-500',
+      maintenance: 'bg-gray-500',
     }
     return colors[type] || 'bg-gray-500'
   }
+
+  const now = new Date()
+  const currentEvents = events.filter((eventItem) => {
+    const start = new Date(eventItem.start_date)
+    const end = new Date(eventItem.end_date)
+    return start <= now && end >= now
+  })
+  const upcomingEvents = events.filter((eventItem) => new Date(eventItem.start_date) > now)
+  const pastEvents = events.filter((eventItem) => new Date(eventItem.end_date) < now)
+
+  const toggleSection = (key: 'current' | 'upcoming' | 'past') => {
+    setHiddenSections((previous) => ({ ...previous, [key]: !previous[key] }))
+  }
+
+  const renderEventCard = (event: Event) => (
+    <div key={event.id} className="card flex flex-col">
+      {event.images && event.images.length > 0 && (
+        <div className="-mx-6 -mt-6 mb-4">
+          <ImageCarousel images={event.images} alt={event.title} autoPlay={true} interval={4000} />
+        </div>
+      )}
+
+      <div className={`${getEventTypeColor(event.event_type)} text-white px-4 py-2 -mx-6 ${event.images && event.images.length > 0 ? '' : '-mt-6'} mb-4`}>
+        <p className="font-display text-lg tracking-wide uppercase">{event.event_type}</p>
+      </div>
+
+      <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-3">
+        {event.title}
+      </h3>
+
+      <p className="text-gray-400 mb-4 flex-grow break-words">
+        {event.description || `${event.game} - ${event.track}`}
+      </p>
+
+      <div className="space-y-2 text-sm text-gray-400">
+        <div className="flex items-center gap-2">
+          <Calendar size={16} className="text-kraken-cyan" />
+          <span>{format(new Date(event.start_date), 'MMM d, yyyy')}</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Clock size={16} className="text-kraken-cyan" />
+          <span>{format(new Date(event.start_date), 'h:mm a')}</span>
+        </div>
+
+        {event.prize && (
+          <div className="flex items-center gap-2">
+            <Trophy size={16} className="text-kraken-cyan" />
+            <span>{event.prize}</span>
+          </div>
+        )}
+
+        {event.max_participants && (
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-kraken-cyan" />
+            <span>{event.current_participants} / {event.max_participants} participants</span>
+          </div>
+        )}
+      </div>
+
+      <Link href={`/bookings?from=home&event_id=${event.id}`} className="btn-primary mt-6 w-full text-center">
+        REGISTER
+      </Link>
+    </div>
+  )
+
+  const renderSection = (title: string, key: 'current' | 'upcoming' | 'past', sectionEvents: Event[]) => (
+    <div className="max-w-6xl mx-auto mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-2xl font-display tracking-wide text-kraken-cyan">{title}</h3>
+        <button
+          type="button"
+          onClick={() => toggleSection(key)}
+          className="btn-secondary px-4 py-2 text-sm"
+        >
+          {hiddenSections[key] ? 'SHOW' : 'HIDE'}
+        </button>
+      </div>
+
+      {!hiddenSections[key] && (
+        sectionEvents.length === 0 ? (
+          <div className="card text-center py-8">
+            <p className="text-gray-400">No {title.toLowerCase()} events right now.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-8">
+            {sectionEvents.map((event) => renderEventCard(event))}
+          </div>
+        )
+      )}
+    </div>
+  )
 
   return (
     <section id="events" className="py-24 bg-kraken-dark">
@@ -74,60 +171,11 @@ export default function UpcomingEvents() {
             <p className="text-gray-500 mt-4">Check back soon for upcoming races and tournaments!</p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {events.map((event) => (
-              <div key={event.id} className="card flex flex-col">
-                {/* Event Images Carousel */}
-                {event.images && event.images.length > 0 && (
-                  <div className="-mx-6 -mt-6 mb-4">
-                    <ImageCarousel images={event.images} alt={event.title} autoPlay={true} interval={4000} />
-                  </div>
-                )}
-
-                <div className={`${getEventTypeColor(event.event_type)} text-white px-4 py-2 -mx-6 ${event.images && event.images.length > 0 ? '' : '-mt-6'} mb-4`}>
-                  <p className="font-display text-lg tracking-wide uppercase">{event.event_type}</p>
-                </div>
-
-                <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-3">
-                  {event.title}
-                </h3>
-
-                <p className="text-gray-400 mb-4 flex-grow">
-                  {event.description || `${event.game} - ${event.track}`}
-                </p>
-
-                <div className="space-y-2 text-sm text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-kraken-cyan" />
-                    <span>{format(new Date(event.start_date), 'MMM d, yyyy')}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Clock size={16} className="text-kraken-cyan" />
-                    <span>{format(new Date(event.start_date), 'h:mm a')}</span>
-                  </div>
-
-                  {event.prize && (
-                    <div className="flex items-center gap-2">
-                      <Trophy size={16} className="text-kraken-cyan" />
-                      <span>{event.prize}</span>
-                    </div>
-                  )}
-
-                  {event.max_participants && (
-                    <div className="flex items-center gap-2">
-                      <Users size={16} className="text-kraken-cyan" />
-                      <span>{event.current_participants} / {event.max_participants} participants</span>
-                    </div>
-                  )}
-                </div>
-
-                <Link href={`/bookings?from=home&event_id=${event.id}`} className="btn-primary mt-6 w-full text-center">
-                  REGISTER
-                </Link>
-              </div>
-            ))}
-          </div>
+          <>
+            {renderSection('Current', 'current', currentEvents)}
+            {renderSection('Upcoming', 'upcoming', upcomingEvents)}
+            {renderSection('Past', 'past', pastEvents)}
+          </>
         )}
       </div>
     </section>

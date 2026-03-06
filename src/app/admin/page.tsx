@@ -2,17 +2,22 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Trophy, Calendar, Tag, Users, Clock, TrendingUp } from 'lucide-react'
+import { Trophy, Calendar, Tag, Users, Clock, TrendingUp, SlidersHorizontal } from 'lucide-react'
 import { getDefaultLaunchDate, getLaunchPhase } from '@/lib/launchPhase'
-import {
-  FALLBACK_CARS,
-  FALLBACK_GAMES,
-  FALLBACK_TRACKS,
-  isMissingSiteSettingsTableError,
-  parseOptionsInput,
-  readLocalDefaultOptions,
-  saveLocalDefaultOptions,
-} from '@/lib/adminDefaults'
+import { buildCatalogFromFlatDefaults, parseDefaultGameCatalog, parseOptionsInput } from '@/lib/adminDefaults'
+
+type HighlightRow = {
+  id: string
+  label: string
+  game: string
+  track: string
+}
+
+type GameDefaultsNode = {
+  game: string
+  tracks: string[]
+  cars: string[]
+}
 
 type SiteSettingRow = {
   key: string
@@ -32,11 +37,12 @@ export default function AdminDashboard() {
   const [launchDate, setLaunchDate] = useState(getDefaultLaunchDate().slice(0, 16))
   const [savingLaunchDate, setSavingLaunchDate] = useState(false)
   const [launchMessage, setLaunchMessage] = useState('')
-  const [defaultGamesText, setDefaultGamesText] = useState(FALLBACK_GAMES.join('\n'))
-  const [defaultTracksText, setDefaultTracksText] = useState(FALLBACK_TRACKS.join('\n'))
-  const [defaultCarsText, setDefaultCarsText] = useState(FALLBACK_CARS.join('\n'))
-  const [savingDefaults, setSavingDefaults] = useState(false)
-  const [defaultsMessage, setDefaultsMessage] = useState('')
+  const [highlightedRows, setHighlightedRows] = useState<HighlightRow[]>([])
+  const [draggingHighlightId, setDraggingHighlightId] = useState<string | null>(null)
+  const [gameCatalog, setGameCatalog] = useState<GameDefaultsNode[]>([])
+  const [availableGames, setAvailableGames] = useState<string[]>([])
+  const [savingHighlightedLeaderboards, setSavingHighlightedLeaderboards] = useState(false)
+  const [highlightedLeaderboardMessage, setHighlightedLeaderboardMessage] = useState('')
 
   useEffect(() => {
     fetchDashboardStats()
@@ -44,16 +50,6 @@ export default function AdminDashboard() {
 
   const fetchDashboardStats = async () => {
     const supabase = createClient()
-    const localDefaults = readLocalDefaultOptions()
-    if (localDefaults.games.length > 0) {
-      setDefaultGamesText(localDefaults.games.join('\n'))
-    }
-    if (localDefaults.tracks.length > 0) {
-      setDefaultTracksText(localDefaults.tracks.join('\n'))
-    }
-    if (localDefaults.cars.length > 0) {
-      setDefaultCarsText(localDefaults.cars.join('\n'))
-    }
 
     // Fetch stats in parallel
     const [
@@ -81,47 +77,55 @@ export default function AdminDashboard() {
       recentEntries: recentData || [],
     })
 
-    const { data: launchData } = await supabase
+    const { data: settingsData } = await supabase
       .from('site_settings')
-      .select('value_text')
-      .eq('key', 'launch_date')
-      .single()
+      .select('key, value_text')
+      .in('key', ['launch_date', 'highlighted_leaderboards', 'default_game_catalog', 'default_games', 'default_tracks', 'default_cars'])
+
+    const settings = (settingsData || []) as SiteSettingRow[]
+    const launchData = settings.find((item) => item.key === 'launch_date')
+    const highlightedData = settings.find((item) => item.key === 'highlighted_leaderboards')
+    const parsedCatalog = parseDefaultGameCatalog(settings.find((item) => item.key === 'default_game_catalog')?.value_text || '')
+    const games = parseOptionsInput(settings.find((item) => item.key === 'default_games')?.value_text || '')
+    const tracks = parseOptionsInput(settings.find((item) => item.key === 'default_tracks')?.value_text || '')
+    const cars = parseOptionsInput(settings.find((item) => item.key === 'default_cars')?.value_text || '')
+    const catalog = parsedCatalog.length > 0 ? parsedCatalog : buildCatalogFromFlatDefaults(games, tracks, cars)
+    setGameCatalog(catalog)
+    setAvailableGames(catalog.map((item) => item.game))
 
     if (launchData?.value_text) {
       setLaunchDate(launchData.value_text.slice(0, 16))
     }
 
-    const { data: dropdownDefaults, error: defaultsError } = await supabase
-      .from('site_settings')
-      .select('key, value_text')
-      .in('key', ['default_games', 'default_tracks', 'default_cars'])
-
-    if (!defaultsError && dropdownDefaults) {
-      const settings = dropdownDefaults as SiteSettingRow[]
-      const gameSetting = settings.find((setting) => setting.key === 'default_games')
-      const trackSetting = settings.find((setting) => setting.key === 'default_tracks')
-      const carSetting = settings.find((setting) => setting.key === 'default_cars')
-
-      if (gameSetting?.value_text) {
-        const games = parseOptionsInput(gameSetting.value_text)
-        if (games.length > 0) {
-          setDefaultGamesText(games.join('\n'))
+    if (highlightedData?.value_text) {
+      try {
+        const parsed = JSON.parse(highlightedData.value_text)
+        if (Array.isArray(parsed)) {
+          const rows = parsed
+            .map((item) => {
+              const label = typeof item?.label === 'string' ? item.label.trim() : ''
+              const game = typeof item?.game === 'string' ? item.game.trim() : ''
+              const track = typeof item?.track === 'string' ? item.track.trim() : ''
+              if (!label || !game || !track) return null
+              return {
+                id: typeof item?.id === 'string' ? item.id : `admin-highlight-${Math.random().toString(36).slice(2, 8)}`,
+                label,
+                game,
+                track,
+              }
+            })
+            .filter(Boolean) as HighlightRow[]
+          setHighlightedRows(rows)
         }
+      } catch {
+        setHighlightedRows([])
       }
-
-      if (trackSetting?.value_text) {
-        const tracks = parseOptionsInput(trackSetting.value_text)
-        if (tracks.length > 0) {
-          setDefaultTracksText(tracks.join('\n'))
-        }
-      }
-
-      if (carSetting?.value_text) {
-        const cars = parseOptionsInput(carSetting.value_text)
-        if (cars.length > 0) {
-          setDefaultCarsText(cars.join('\n'))
-        }
-      }
+    } else {
+      setHighlightedRows([
+        { id: 'admin-highlight-1', label: 'ACC • Monza', game: 'assetto_corsa_competizione', track: 'Monza' },
+        { id: 'admin-highlight-2', label: 'F1 2025 • Silverstone', game: 'f1_2025', track: 'Silverstone' },
+        { id: 'admin-highlight-3', label: 'Forza • Laguna Seca', game: 'forza_motorsport_2023', track: 'Laguna Seca' },
+      ])
     }
 
     setLoading(false)
@@ -160,60 +164,107 @@ export default function AdminDashboard() {
     setSavingLaunchDate(false)
   }
 
-  const saveDropdownDefaults = async () => {
-    setSavingDefaults(true)
-    setDefaultsMessage('')
+  const saveHighlightedLeaderboards = async () => {
+    setSavingHighlightedLeaderboards(true)
+    setHighlightedLeaderboardMessage('')
+
+    const presets = highlightedRows
+      .map((row, index) => ({
+        id: row.id || `admin-highlight-${index + 1}`,
+        label: row.label.trim(),
+        game: row.game.trim(),
+        track: row.track.trim(),
+      }))
+      .filter((row) => row.label && row.game && row.track)
+
+    if (presets.length === 0) {
+      setHighlightedLeaderboardMessage('Add at least one highlight row with label, game, and track.')
+      setSavingHighlightedLeaderboards(false)
+      return
+    }
+
     const supabase = createClient()
-
-    const games = parseOptionsInput(defaultGamesText)
-    const tracks = parseOptionsInput(defaultTracksText)
-    const cars = parseOptionsInput(defaultCarsText)
-
-    if (games.length === 0) {
-      setDefaultsMessage('Add at least one default game.')
-      setSavingDefaults(false)
-      return
-    }
-
-    if (tracks.length === 0) {
-      setDefaultsMessage('Add at least one default track.')
-      setSavingDefaults(false)
-      return
-    }
-
-    if (cars.length === 0) {
-      setDefaultsMessage('Add at least one default car.')
-      setSavingDefaults(false)
-      return
-    }
-
     const { error } = await supabase
       .from('site_settings')
       .upsert(
-        [
-          { key: 'default_games', value_text: games.join('\n') },
-          { key: 'default_tracks', value_text: tracks.join('\n') },
-          { key: 'default_cars', value_text: cars.join('\n') },
-        ],
+        {
+          key: 'highlighted_leaderboards',
+          value_text: JSON.stringify(presets),
+        },
         { onConflict: 'key' }
       )
 
     if (error) {
-      if (isMissingSiteSettingsTableError(error.message)) {
-        saveLocalDefaultOptions(games, tracks, cars)
-        setDefaultsMessage('Saved defaults locally in this browser. To sync across devices, create the site_settings table in Supabase.')
-      } else {
-        setDefaultsMessage(`Could not save defaults: ${error.message}`)
-      }
+      setHighlightedLeaderboardMessage(`Could not save highlights: ${error.message}`)
     } else {
-      saveLocalDefaultOptions(games, tracks, cars)
-      setDefaultsMessage('Default dropdown options saved successfully.')
-      setDefaultGamesText(games.join('\n'))
-      setDefaultTracksText(tracks.join('\n'))
-      setDefaultCarsText(cars.join('\n'))
+      setHighlightedLeaderboardMessage('Highlighted leaderboards saved successfully.')
     }
 
-    setSavingDefaults(false)
+    setSavingHighlightedLeaderboards(false)
+  }
+
+  const updateHighlightRow = (id: string, updates: Partial<HighlightRow>) => {
+    setHighlightedRows((previous) =>
+      previous.map((row) => {
+        if (row.id !== id) return row
+        const next = { ...row, ...updates }
+        if (updates.game && updates.game !== row.game) {
+          next.track = ''
+        }
+        return next
+      })
+    )
+  }
+
+  const addHighlightRow = () => {
+    const defaultGame = availableGames[0] || ''
+    const defaultTrack = gameCatalog.find((item) => item.game === defaultGame)?.tracks?.[0] || ''
+    setHighlightedRows((previous) => [
+      ...previous,
+      {
+        id: `admin-highlight-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: '',
+        game: defaultGame,
+        track: defaultTrack,
+      },
+    ])
+  }
+
+  const removeHighlightRow = (id: string) => {
+    setHighlightedRows((previous) => previous.filter((row) => row.id !== id))
+  }
+
+  const moveHighlightRow = (id: string, direction: -1 | 1) => {
+    setHighlightedRows((previous) => {
+      const currentIndex = previous.findIndex((row) => row.id === id)
+      if (currentIndex < 0) return previous
+
+      const nextIndex = currentIndex + direction
+      if (nextIndex < 0 || nextIndex >= previous.length) return previous
+
+      const next = [...previous]
+      ;[next[currentIndex], next[nextIndex]] = [next[nextIndex], next[currentIndex]]
+      return next
+    })
+  }
+
+  const moveHighlightRowTo = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) {
+      return
+    }
+
+    setHighlightedRows((previous) => {
+      const sourceIndex = previous.findIndex((row) => row.id === sourceId)
+      const targetIndex = previous.findIndex((row) => row.id === targetId)
+      if (sourceIndex < 0 || targetIndex < 0) {
+        return previous
+      }
+
+      const next = [...previous]
+      const [moved] = next.splice(sourceIndex, 1)
+      next.splice(targetIndex, 0, moved)
+      return next
+    })
   }
 
   const StatCard = ({ icon: Icon, label, value, color, href }: any) => (
@@ -316,8 +367,8 @@ export default function AdminDashboard() {
               ) : (
                 stats.recentEntries.map((entry) => (
                   <tr key={entry.id} className="table-row">
-                    <td className="py-3 px-4 font-display">{entry.driver_name}</td>
-                    <td className="py-3 px-4 text-gray-400">{entry.game.replace('_', ' ').toUpperCase()}</td>
+                    <td className="py-3 px-4 font-display whitespace-normal break-words max-w-[220px] align-top">{entry.driver_name}</td>
+                    <td className="py-3 px-4 text-gray-400 whitespace-normal break-words max-w-[220px] align-top">{entry.game.replace('_', ' ').toUpperCase()}</td>
                     <td className="py-3 px-4 font-mono text-kraken-cyan">{entry.lap_time_display}</td>
                     <td className="py-3 px-4">
                       <span className={`px-3 py-1 text-xs font-display ${
@@ -360,6 +411,120 @@ export default function AdminDashboard() {
           <h4 className="font-display text-xl text-white mb-2">REVIEW TIMES</h4>
           <p className="text-gray-400 text-sm">Approve or reject submissions</p>
         </a>
+        <a href="/admin/defaults" className="card text-center hover:scale-105 transition-transform">
+          <SlidersHorizontal className="mx-auto mb-4 text-kraken-cyan" size={48} />
+          <h4 className="font-display text-xl text-white mb-2">DEFAULTS HIERARCHY</h4>
+          <p className="text-gray-400 text-sm">Manage games, tracks, and cars by game</p>
+        </a>
+      </div>
+
+      <div className="card">
+        <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
+          HIGHLIGHTED LEADERBOARDS
+        </h3>
+        <p className="text-sm text-gray-400 mb-3">Configure rotating highlights using dropdowns.</p>
+        <div className="space-y-3">
+          {highlightedRows.map((row, index) => {
+            const tracksForGame = gameCatalog.find((item) => item.game === row.game)?.tracks || []
+            return (
+              <div
+                key={row.id}
+                draggable
+                onDragStart={() => setDraggingHighlightId(row.id)}
+                onDragEnd={() => setDraggingHighlightId(null)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => {
+                  if (draggingHighlightId) {
+                    moveHighlightRowTo(draggingHighlightId, row.id)
+                  }
+                  setDraggingHighlightId(null)
+                }}
+                className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-3 items-end cursor-move"
+              >
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Label</label>
+                  <input
+                    className="input-field"
+                    value={row.label}
+                    onChange={(event) => updateHighlightRow(row.id, { label: event.target.value })}
+                    placeholder="ACC • Monza"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Game</label>
+                  <select
+                    className="input-field"
+                    value={row.game}
+                    onChange={(event) => updateHighlightRow(row.id, { game: event.target.value })}
+                  >
+                    <option value="">Select game</option>
+                    {availableGames.map((game) => (
+                      <option key={game} value={game}>
+                        {game.replace(/_/g, ' ').toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Track</label>
+                  <select
+                    className="input-field"
+                    value={row.track}
+                    onChange={(event) => updateHighlightRow(row.id, { track: event.target.value })}
+                  >
+                    <option value="">Select track</option>
+                    {tracksForGame.map((track) => (
+                      <option key={track} value={track}>
+                        {track}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => moveHighlightRow(row.id, -1)}
+                    disabled={index === 0}
+                  >
+                    UP
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => moveHighlightRow(row.id, 1)}
+                    disabled={index === highlightedRows.length - 1}
+                  >
+                    DOWN
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => removeHighlightRow(row.id)}
+                  >
+                    REMOVE
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="mt-4">
+          <button type="button" onClick={addHighlightRow} className="btn-secondary w-full sm:w-auto">
+            ADD HIGHLIGHT
+          </button>
+        </div>
+        <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <button
+            type="button"
+            onClick={saveHighlightedLeaderboards}
+            disabled={savingHighlightedLeaderboards}
+            className="btn-primary w-full sm:w-auto"
+          >
+            {savingHighlightedLeaderboards ? 'SAVING...' : 'SAVE HIGHLIGHTS'}
+          </button>
+          {highlightedLeaderboardMessage && <p className="text-sm text-gray-300">{highlightedLeaderboardMessage}</p>}
+        </div>
       </div>
 
       <div className="card">
@@ -394,54 +559,6 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      <div className="card">
-        <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
-          DEFAULT DROPDOWN OPTIONS
-        </h3>
-        <p className="text-gray-400 mb-4 text-sm">
-          Manage default Games, Tracks, and Cars used in forms and Discord filters. Use one value per line (or commas).
-        </p>
-        <div className="grid md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-kraken-cyan mb-2 font-display">DEFAULT GAMES</label>
-            <textarea
-              value={defaultGamesText}
-              onChange={(event) => setDefaultGamesText(event.target.value)}
-              className="input-field min-h-[180px]"
-              placeholder="assetto_corsa\nassetto_corsa_competizione\nf1_2025"
-            />
-          </div>
-          <div>
-            <label className="block text-kraken-cyan mb-2 font-display">DEFAULT TRACKS</label>
-            <textarea
-              value={defaultTracksText}
-              onChange={(event) => setDefaultTracksText(event.target.value)}
-              className="input-field min-h-[180px]"
-              placeholder="Monza\nSpa-Francorchamps\nSilverstone"
-            />
-          </div>
-          <div>
-            <label className="block text-kraken-cyan mb-2 font-display">DEFAULT CARS</label>
-            <textarea
-              value={defaultCarsText}
-              onChange={(event) => setDefaultCarsText(event.target.value)}
-              className="input-field min-h-[180px]"
-              placeholder="Porsche 911 GT3\nFerrari 296 GT3\nMercedes-AMG GT3"
-            />
-          </div>
-        </div>
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={saveDropdownDefaults}
-            disabled={savingDefaults}
-            className="btn-primary w-full md:w-auto"
-          >
-            {savingDefaults ? 'SAVING...' : 'SAVE DEFAULT OPTIONS'}
-          </button>
-        </div>
-        {defaultsMessage && <p className="text-sm text-gray-300 mt-3">{defaultsMessage}</p>}
-      </div>
     </div>
   )
 }

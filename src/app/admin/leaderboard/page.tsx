@@ -1,9 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Check, X, Eye, Clock, Trophy, Plus, Trash2 } from 'lucide-react'
-import { FALLBACK_GAMES, FALLBACK_TRACKS, parseOptionsInput, readLocalDefaultOptions } from '@/lib/adminDefaults'
+import {
+  FALLBACK_CARS,
+  FALLBACK_GAMES,
+  FALLBACK_TRACKS,
+  GameDefaultsNode,
+  buildCatalogFromFlatDefaults,
+  flattenGameCatalog,
+  parseDefaultGameCatalog,
+  parseOptionsInput,
+  readLocalDefaultGameCatalog,
+  readLocalDefaultOptions,
+} from '@/lib/adminDefaults'
 
 type Entry = {
   id: string
@@ -63,13 +75,25 @@ export default function AdminLeaderboardPage() {
   const [availableGames, setAvailableGames] = useState<string[]>([])
   const [availableTracks, setAvailableTracks] = useState<string[]>([])
   const [availableCars, setAvailableCars] = useState<string[]>([])
-  const [sortBy, setSortBy] = useState<'created_at' | 'lap_time_ms' | 'driver_name' | 'track' | 'game'>('created_at')
+  const [sortBy, setSortBy] = useState<'created_at' | 'lap_time_ms' | 'driver_name' | 'track' | 'game' | 'event'>('created_at')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [loading, setLoading] = useState(true)
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null)
+  const [editDraft, setEditDraft] = useState({
+    driver_name: '',
+    game: '',
+    track: '',
+    car: '',
+    lap_time_display: '',
+    screenshot_url: '',
+    video_url: '',
+  })
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [defaultGames, setDefaultGames] = useState<string[]>(FALLBACK_GAMES)
   const [defaultTracks, setDefaultTracks] = useState<string[]>(FALLBACK_TRACKS)
+  const [defaultCars, setDefaultCars] = useState<string[]>(FALLBACK_CARS)
+  const [defaultCatalog, setDefaultCatalog] = useState<GameDefaultsNode[]>([])
   const [eventOptions, setEventOptions] = useState<EventOption[]>([])
   const [selectedEventForEntry, setSelectedEventForEntry] = useState('')
   const [newEntry, setNewEntry] = useState({
@@ -83,6 +107,8 @@ export default function AdminLeaderboardPage() {
   })
   const supabase = createClient()
   const selectedEventForManualEntry = eventOptions.find((item) => item.id === selectedEventForEntry)
+  const selectedFilterCatalogNode = gameFilter !== 'all' ? defaultCatalog.find((item) => item.game === gameFilter) : null
+  const selectedEntryCatalogNode = newEntry.game ? defaultCatalog.find((item) => item.game === newEntry.game) : null
   const manualEntryEventCarClass = selectedEventForManualEntry?.car_class || null
   const manualEntryCarSuggestions = getCarSuggestions(manualEntryEventCarClass)
 
@@ -102,6 +128,22 @@ export default function AdminLeaderboardPage() {
 
   const fetchDropdownDefaults = async () => {
     const localDefaults = readLocalDefaultOptions()
+    const localCatalog = readLocalDefaultGameCatalog()
+
+    if (localCatalog.length > 0) {
+      setDefaultCatalog(localCatalog)
+      const localFlattened = flattenGameCatalog(localCatalog)
+      if (localFlattened.games.length > 0) {
+        setDefaultGames(localFlattened.games)
+      }
+      if (localFlattened.tracks.length > 0) {
+        setDefaultTracks(localFlattened.tracks)
+      }
+      if (localFlattened.cars.length > 0) {
+        setDefaultCars(localFlattened.cars)
+      }
+    }
+
     if (localDefaults.games.length > 0) {
       setDefaultGames(localDefaults.games)
       setNewEntry((previous) => ({
@@ -112,11 +154,14 @@ export default function AdminLeaderboardPage() {
     if (localDefaults.tracks.length > 0) {
       setDefaultTracks(localDefaults.tracks)
     }
+    if (localDefaults.cars.length > 0) {
+      setDefaultCars(localDefaults.cars)
+    }
 
     const { data, error } = await supabase
       .from('site_settings')
       .select('key, value_text')
-      .in('key', ['default_games', 'default_tracks'])
+      .in('key', ['default_games', 'default_tracks', 'default_cars', 'default_game_catalog'])
 
     if (!data || error) {
       return
@@ -125,21 +170,31 @@ export default function AdminLeaderboardPage() {
     const settings = data as SiteSettingRow[]
     const gamesSetting = settings.find((item) => item.key === 'default_games')
     const tracksSetting = settings.find((item) => item.key === 'default_tracks')
+    const carsSetting = settings.find((item) => item.key === 'default_cars')
+    const catalogSetting = settings.find((item) => item.key === 'default_game_catalog')
 
     const games = gamesSetting?.value_text ? parseOptionsInput(gamesSetting.value_text) : []
     const tracks = tracksSetting?.value_text ? parseOptionsInput(tracksSetting.value_text) : []
+    const cars = carsSetting?.value_text ? parseOptionsInput(carsSetting.value_text) : []
+    const parsedCatalog = parseDefaultGameCatalog(catalogSetting?.value_text || '')
+    const catalog = parsedCatalog.length > 0 ? parsedCatalog : buildCatalogFromFlatDefaults(games, tracks, cars)
+    const flattenedCatalog = flattenGameCatalog(catalog)
 
-    if (games.length > 0) {
-      setDefaultGames(games)
+    if (catalog.length > 0) {
+      setDefaultCatalog(catalog)
+    }
+
+    if (flattenedCatalog.games.length > 0 || localDefaults.games.length > 0) {
+      const mergedGames = Array.from(new Set([...FALLBACK_GAMES, ...flattenedCatalog.games, ...localDefaults.games])).sort()
+      setDefaultGames(mergedGames)
       setNewEntry((previous) => ({
         ...previous,
-        game: games.includes(previous.game) ? previous.game : games[0],
+        game: mergedGames.includes(previous.game) ? previous.game : mergedGames[0],
       }))
     }
 
-    if (tracks.length > 0) {
-      setDefaultTracks(tracks)
-    }
+    setDefaultTracks(Array.from(new Set([...FALLBACK_TRACKS, ...flattenedCatalog.tracks, ...localDefaults.tracks])).sort())
+    setDefaultCars(Array.from(new Set([...FALLBACK_CARS, ...flattenedCatalog.cars, ...localDefaults.cars])).sort())
   }
 
   const fetchEventOptions = async () => {
@@ -215,7 +270,7 @@ export default function AdminLeaderboardPage() {
 
     const games = Array.from(new Set([...gamesFromData, ...defaultGames, ...localDefaults.games, ...FALLBACK_GAMES])).sort()
     const tracks = Array.from(new Set([...tracksFromData, ...defaultTracks, ...localDefaults.tracks, ...FALLBACK_TRACKS])).sort()
-    const cars = Array.from(new Set(carsFromData)).sort()
+    const cars = Array.from(new Set([...carsFromData, ...defaultCars, ...localDefaults.cars, ...FALLBACK_CARS])).sort()
 
     setAvailableGames(games)
     setAvailableTracks(tracks)
@@ -297,6 +352,62 @@ export default function AdminLeaderboardPage() {
       fetchEntries()
     } else {
       alert('Error deleting entry: ' + (payload.error || 'Unknown error'))
+    }
+  }
+
+  const openEditModal = (entry: Entry) => {
+    setEditingEntry(entry)
+    setEditDraft({
+      driver_name: entry.driver_name,
+      game: entry.game,
+      track: entry.track,
+      car: entry.car,
+      lap_time_display: entry.lap_time_display,
+      screenshot_url: entry.screenshot_url || '',
+      video_url: entry.video_url || '',
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry) {
+      return
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const accessToken = session?.access_token
+    if (!accessToken) {
+      alert('You must be logged in to edit entries.')
+      return
+    }
+
+    const response = await fetch(`/api/admin/leaderboard/${editingEntry.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(editDraft),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      alert('Error updating entry: ' + (payload.error || 'Unknown error'))
+      return
+    }
+
+    setEditingEntry(null)
+    fetchEntries()
+    if (selectedEntry?.id === editingEntry.id) {
+      setSelectedEntry((previous) =>
+        previous
+          ? {
+              ...previous,
+              ...editDraft,
+              screenshot_url: editDraft.screenshot_url || null,
+              video_url: editDraft.video_url || null,
+            }
+          : previous
+      )
     }
   }
 
@@ -387,8 +498,19 @@ export default function AdminLeaderboardPage() {
   )
 
   const filteredGames = availableGames.filter((game) => game.toLowerCase().includes(gameSearch.toLowerCase().trim()))
-  const filteredTracks = availableTracks.filter((track) => track.toLowerCase().includes(trackSearch.toLowerCase().trim()))
-  const filteredCars = availableCars.filter((car) => car.toLowerCase().includes(carSearch.toLowerCase().trim()))
+  const tracksSource =
+    gameFilter !== 'all' && selectedFilterCatalogNode?.tracks?.length
+      ? Array.from(new Set([...selectedFilterCatalogNode.tracks, ...availableTracks]))
+      : availableTracks
+  const carsSource =
+    gameFilter !== 'all' && selectedFilterCatalogNode?.cars?.length
+      ? Array.from(new Set([...selectedFilterCatalogNode.cars, ...availableCars]))
+      : availableCars
+  const manualEntryTrackDefaults = selectedEntryCatalogNode?.tracks?.length ? selectedEntryCatalogNode.tracks : defaultTracks
+  const manualEntryCarDefaults = selectedEntryCatalogNode?.cars?.length ? selectedEntryCatalogNode.cars : defaultCars
+  const filteredTracks = tracksSource.filter((track) => track.toLowerCase().includes(trackSearch.toLowerCase().trim()))
+  const filteredCars = carsSource.filter((car) => car.toLowerCase().includes(carSearch.toLowerCase().trim()))
+  const manualEntryCarOptions = Array.from(new Set([...manualEntryCarDefaults, ...manualEntryCarSuggestions]))
 
   return (
     <section>
@@ -492,6 +614,7 @@ export default function AdminLeaderboardPage() {
             <option value="driver_name">Sort: Driver</option>
             <option value="track">Sort: Track</option>
             <option value="game">Sort: Game</option>
+            <option value="event">Sort: Event</option>
           </select>
 
           <select
@@ -535,9 +658,9 @@ export default function AdminLeaderboardPage() {
           {entries.map((entry) => (
             <div key={entry.id} className="card hover:border-kraken-cyan transition-all">
               <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-2">
-                    <h3 className="text-2xl font-display text-white">{entry.driver_name}</h3>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-start gap-3 mb-2">
+                    <h3 className="text-2xl font-display text-white break-words min-w-0">{entry.driver_name}</h3>
                     <span className={`px-3 py-1 text-xs font-display ${
                       entry.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
                       entry.status === 'approved' ? 'bg-green-500/20 text-green-400' :
@@ -548,10 +671,10 @@ export default function AdminLeaderboardPage() {
                   </div>
                   
                   <div className="grid md:grid-cols-2 gap-4 text-gray-300">
-                    <div>
-                      <p><span className="text-kraken-cyan">Game:</span> {entry.game.replace('_', ' ').toUpperCase()}</p>
-                      <p><span className="text-kraken-cyan">Track:</span> {entry.track}</p>
-                      <p><span className="text-kraken-cyan">Car:</span> {entry.car}</p>
+                    <div className="min-w-0">
+                      <p className="break-words"><span className="text-kraken-cyan">Game:</span> {entry.game.replace('_', ' ').toUpperCase()}</p>
+                      <p className="break-words"><span className="text-kraken-cyan">Track:</span> {entry.track}</p>
+                      <p className="break-words"><span className="text-kraken-cyan">Car:</span> {entry.car}</p>
                     </div>
                     <div>
                       <p className="text-3xl font-mono text-kraken-cyan">{entry.lap_time_display}</p>
@@ -577,6 +700,12 @@ export default function AdminLeaderboardPage() {
                   >
                     <Eye size={16} />
                     VIEW
+                  </button>
+                  <button
+                    onClick={() => openEditModal(entry)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 text-sm font-display flex items-center justify-center gap-2 transition-colors"
+                  >
+                    EDIT
                   </button>
                   
                   {entry.status === 'pending' && (
@@ -639,7 +768,7 @@ export default function AdminLeaderboardPage() {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-400 mb-1">Driver</p>
-                  <p className="text-xl font-display text-white">{selectedEntry.driver_name}</p>
+                  <p className="text-xl font-display text-white break-words">{selectedEntry.driver_name}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 mb-1">Lap Time</p>
@@ -647,15 +776,15 @@ export default function AdminLeaderboardPage() {
                 </div>
                 <div>
                   <p className="text-gray-400 mb-1">Game</p>
-                  <p className="text-white">{selectedEntry.game.replace('_', ' ').toUpperCase()}</p>
+                  <p className="text-white break-words">{selectedEntry.game.replace('_', ' ').toUpperCase()}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 mb-1">Track</p>
-                  <p className="text-white">{selectedEntry.track}</p>
+                  <p className="text-white break-words">{selectedEntry.track}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 mb-1">Car</p>
-                  <p className="text-white">{selectedEntry.car}</p>
+                  <p className="text-white break-words">{selectedEntry.car}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 mb-1">Status</p>
@@ -672,11 +801,15 @@ export default function AdminLeaderboardPage() {
               {selectedEntry.screenshot_url && (
                 <div>
                   <p className="text-gray-400 mb-2">Screenshot</p>
-                  <img
-                    src={selectedEntry.screenshot_url}
-                    alt="Lap time screenshot"
-                    className="w-full rounded border-2 border-kraken-cyan/30"
-                  />
+                  <div className="relative w-full h-[320px] rounded border-2 border-kraken-cyan/30 overflow-hidden">
+                    <Image
+                      src={selectedEntry.screenshot_url}
+                      alt="Lap time screenshot"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 70vw"
+                      className="object-contain bg-black/20"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -718,11 +851,130 @@ export default function AdminLeaderboardPage() {
 
               <div className="pt-2">
                 <button
+                  onClick={() => openEditModal(selectedEntry)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 mb-3 font-display transition-colors"
+                >
+                  EDIT ENTRY
+                </button>
+                <button
                   onClick={() => handleDeleteEntry(selectedEntry.id)}
                   className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-6 font-display flex items-center justify-center gap-2 transition-colors"
                 >
                   <Trash2 size={20} />
                   REMOVE ENTRY
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingEntry && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setEditingEntry(null)}
+        >
+          <div
+            className="card max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <h3 className="text-3xl font-display text-kraken-cyan">EDIT SUBMISSION</h3>
+              <button
+                onClick={() => setEditingEntry(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-300 mb-2">Driver Name *</label>
+                <input
+                  type="text"
+                  value={editDraft.driver_name}
+                  onChange={(event) => setEditDraft({ ...editDraft, driver_name: event.target.value })}
+                  className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 mb-2">Game *</label>
+                <input
+                  type="text"
+                  value={editDraft.game}
+                  onChange={(event) => setEditDraft({ ...editDraft, game: event.target.value })}
+                  className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 mb-2">Track *</label>
+                <input
+                  type="text"
+                  value={editDraft.track}
+                  onChange={(event) => setEditDraft({ ...editDraft, track: event.target.value })}
+                  className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 mb-2">Car *</label>
+                <input
+                  type="text"
+                  value={editDraft.car}
+                  onChange={(event) => setEditDraft({ ...editDraft, car: event.target.value })}
+                  className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 mb-2">Lap Time *</label>
+                <input
+                  type="text"
+                  value={editDraft.lap_time_display}
+                  onChange={(event) => setEditDraft({ ...editDraft, lap_time_display: event.target.value })}
+                  className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none font-mono"
+                  placeholder="M:SS(.mmm)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 mb-2">Screenshot URL</label>
+                <input
+                  type="url"
+                  value={editDraft.screenshot_url}
+                  onChange={(event) => setEditDraft({ ...editDraft, screenshot_url: event.target.value })}
+                  className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 mb-2">Video URL</label>
+                <input
+                  type="url"
+                  value={editDraft.video_url}
+                  onChange={(event) => setEditDraft({ ...editDraft, video_url: event.target.value })}
+                  className="w-full px-4 py-3 bg-kraken-card border border-gray-700 text-white focus:border-kraken-cyan focus:outline-none"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                <button
+                  onClick={handleSaveEdit}
+                  className="btn-primary flex-1"
+                  disabled={!editDraft.driver_name.trim() || !editDraft.game.trim() || !editDraft.track.trim() || !editDraft.car.trim() || !editDraft.lap_time_display.trim()}
+                >
+                  SAVE CHANGES
+                </button>
+                <button
+                  onClick={() => setEditingEntry(null)}
+                  className="btn-secondary flex-1"
+                >
+                  CANCEL
                 </button>
               </div>
             </div>
@@ -819,7 +1071,7 @@ export default function AdminLeaderboardPage() {
                   required
                 />
                 <datalist id="leaderboard-track-defaults">
-                  {defaultTracks.map((track) => (
+                  {manualEntryTrackDefaults.map((track) => (
                     <option key={track} value={track} />
                   ))}
                 </datalist>
@@ -837,7 +1089,7 @@ export default function AdminLeaderboardPage() {
                   required
                 />
                 <datalist id="admin-leaderboard-car-suggestions">
-                  {manualEntryCarSuggestions.map((item) => (
+                  {manualEntryCarOptions.map((item) => (
                     <option key={item} value={item} />
                   ))}
                 </datalist>

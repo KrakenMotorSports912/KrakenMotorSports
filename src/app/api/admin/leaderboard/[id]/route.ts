@@ -33,6 +33,38 @@ const isAdminUser = async (userId: string, userEmail: string | null | undefined)
   return Boolean(data?.is_admin)
 }
 
+const parseLapTime = (timeStr: string): { milliseconds: number; formatted: string } | null => {
+  const normalized = timeStr.trim().replace(',', '.')
+
+  const minuteSecondMatch = normalized.match(/^(\d{1,3}):([0-5]?\d)(?:[.:](\d{1,3}))?$/)
+  const secondMatch = normalized.match(/^([0-5]?\d)(?:[.:](\d{1,3}))$/)
+
+  let minutes = 0
+  let seconds = 0
+  let milliseconds = 0
+
+  if (minuteSecondMatch) {
+    const [, minutesRaw, secondsRaw, millisRaw = '0'] = minuteSecondMatch
+    minutes = parseInt(minutesRaw, 10)
+    seconds = parseInt(secondsRaw, 10)
+    milliseconds = parseInt(millisRaw.padEnd(3, '0'), 10)
+  } else if (secondMatch) {
+    const [, secondsRaw, millisRaw] = secondMatch
+    seconds = parseInt(secondsRaw, 10)
+    milliseconds = parseInt(millisRaw.padEnd(3, '0'), 10)
+  } else {
+    return null
+  }
+
+  const totalMilliseconds = minutes * 60000 + seconds * 1000 + milliseconds
+  const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`
+
+  return {
+    milliseconds: totalMilliseconds,
+    formatted,
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -127,22 +159,80 @@ export async function PATCH(
     const nextStatus = body?.status as 'approved' | 'rejected' | 'pending' | undefined
     const rejectionReason = (body?.rejection_reason || null) as string | null
 
-    if (!nextStatus || !['approved', 'rejected', 'pending'].includes(nextStatus)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    const updatePayload: Database['public']['Tables']['leaderboard_entries']['Update'] = {}
+
+    if (typeof body?.driver_name === 'string') {
+      const value = body.driver_name.trim()
+      if (!value) {
+        return NextResponse.json({ error: 'Driver name cannot be blank' }, { status: 400 })
+      }
+      updatePayload.driver_name = value
     }
 
-    const updatePayload: Database['public']['Tables']['leaderboard_entries']['Update'] = {
-      status: nextStatus,
-      rejection_reason: nextStatus === 'rejected' ? rejectionReason : null,
-      verified_by: user.id,
-      verified_at: new Date().toISOString(),
+    if (typeof body?.game === 'string') {
+      const value = body.game.trim()
+      if (!value) {
+        return NextResponse.json({ error: 'Game cannot be blank' }, { status: 400 })
+      }
+      updatePayload.game = value
+    }
+
+    if (typeof body?.track === 'string') {
+      const value = body.track.trim()
+      if (!value) {
+        return NextResponse.json({ error: 'Track cannot be blank' }, { status: 400 })
+      }
+      updatePayload.track = value
+    }
+
+    if (typeof body?.car === 'string') {
+      const value = body.car.trim()
+      if (!value) {
+        return NextResponse.json({ error: 'Car cannot be blank' }, { status: 400 })
+      }
+      updatePayload.car = value
+    }
+
+    if (typeof body?.lap_time_display === 'string') {
+      const parsed = parseLapTime(body.lap_time_display)
+      if (!parsed) {
+        return NextResponse.json(
+          { error: 'Invalid lap time format. Use M:SS, M:SS.m, M:SS.mm, or M:SS.mmm.' },
+          { status: 400 }
+        )
+      }
+      updatePayload.lap_time_display = parsed.formatted
+      updatePayload.lap_time_ms = parsed.milliseconds
+    }
+
+    if (typeof body?.screenshot_url === 'string') {
+      updatePayload.screenshot_url = body.screenshot_url.trim() || null
+    }
+
+    if (typeof body?.video_url === 'string') {
+      updatePayload.video_url = body.video_url.trim() || null
+    }
+
+    if (nextStatus !== undefined) {
+      if (!['approved', 'rejected', 'pending'].includes(nextStatus)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+      }
+
+      updatePayload.status = nextStatus
+      updatePayload.rejection_reason = nextStatus === 'rejected' ? rejectionReason : null
+      updatePayload.verified_by = user.id
+      updatePayload.verified_at = new Date().toISOString()
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return NextResponse.json({ error: 'No changes provided' }, { status: 400 })
     }
 
     const { data, error } = await serviceClient
       .from('leaderboard_entries')
       .update(updatePayload)
       .eq('id', entryId)
-      .select('id,status,rejection_reason,verified_at')
+      .select('id,driver_name,game,track,car,lap_time_display,lap_time_ms,screenshot_url,video_url,status,rejection_reason,verified_at')
       .maybeSingle()
 
     if (error) {

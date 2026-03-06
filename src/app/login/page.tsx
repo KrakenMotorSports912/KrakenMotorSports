@@ -188,27 +188,21 @@ function LoginContent() {
       <div className="card w-full max-w-xl">
         <h1 className="section-title mb-8">{isSignup ? 'CREATE ACCOUNT' : 'ADMIN LOGIN'}</h1>
 
-        <button
-          type="button"
-          onClick={handleDiscordAuth}
-          disabled={loading || authChecking || (isAuthenticated && isDiscordLinked)}
-          className="btn-secondary w-full justify-center inline-flex"
-        >
-          {isAuthenticated
-            ? isDiscordLinked
-              ? 'DISCORD LINKED'
-              : 'ADD DISCORD'
-            : 'CONTINUE WITH DISCORD'}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleGoogleAuth}
-          disabled={loading || authChecking}
-          className="btn-secondary w-full justify-center inline-flex"
-        >
-          CONTINUE WITH GOOGLE
-        </button>
+        {/* Only show Discord button on signup */}
+        {isSignup && (
+          <button
+            type="button"
+            onClick={handleDiscordAuth}
+            disabled={loading || authChecking || (isAuthenticated && isDiscordLinked)}
+            className="btn-secondary w-full justify-center inline-flex"
+          >
+            {isAuthenticated
+              ? isDiscordLinked
+                ? 'DISCORD LINKED'
+                : 'ADD DISCORD'
+              : 'CONTINUE WITH DISCORD'}
+          </button>
+        )}
 
         <p className="text-center text-sm text-gray-300">
           {authChecking
@@ -216,8 +210,8 @@ function LoginContent() {
             : isAuthenticated
             ? isDiscordLinked
               ? 'Linked: Discord account connected.'
-              : 'Not linked yet: add Discord to connect your racing profile.'
-            : 'Optional: link Discord now or continue with email or phone/password.'}
+              : (isSignup ? 'Not linked yet: add Discord to connect your racing profile.' : '')
+            : (isSignup ? 'Optional: link Discord now or continue with email or phone/password.' : '')}
         </p>
 
         <div className="text-center text-sm text-gray-400">or use email or phone/password below</div>
@@ -294,6 +288,16 @@ function LoginContent() {
             {loading ? 'PLEASE WAIT...' : isSignup ? 'CREATE ACCOUNT' : 'LOGIN'}
           </button>
         </form>
+
+        {/* Move Google button to bottom, always show */}
+        <button
+          type="button"
+          onClick={handleGoogleAuth}
+          disabled={loading || authChecking}
+          className="btn-secondary w-full justify-center inline-flex mt-6"
+        >
+          CONTINUE WITH GOOGLE
+        </button>
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <button onClick={() => setIsSignup((value) => !value)} className="btn-secondary">
