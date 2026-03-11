@@ -93,12 +93,18 @@ export default function Hero() {
               style={{maxWidth: '100%'}}
             >
               <span className="w-full flex items-center justify-center h-full min-h-[56px] text-center">
-                {content.primaryCta}
+                {/* Two lines on desktop, one line on mobile */}
+                <span className="hidden xl:inline">
+                  RESERVE<br />FOUNDERS PASS
+                </span>
+                <span className="inline xl:hidden">
+                  RESERVE FOUNDERS PASS
+                </span>
               </span>
             </Link>
             <Link href="#leaderboard" className="btn-secondary w-full text-center flex-1 h-full min-h-[56px] flex items-center justify-center !p-0" style={{maxWidth: '100%'}}>
               <span className="w-full flex items-center justify-center h-full min-h-[56px] text-center">
-                VIEW LEADERBOARD
+                LEADERBOARDS
               </span>
             </Link>
           </div>
