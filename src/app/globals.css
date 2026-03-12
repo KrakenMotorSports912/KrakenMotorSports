@@ -5,8 +5,9 @@
 @tailwind utilities;
 
 @layer base {
-  body {
+  html, body {
     @apply bg-kraken-dark text-white font-body;
+    overflow-x: hidden;
   }
   
   h1, h2, h3, h4, h5, h6 {
