@@ -305,7 +305,7 @@ colors: {
 ### Update Social Media Links
 Edit `.env.local`:
 ```env
-NEXT_PUBLIC_DISCORD_INVITE=https://discord.gg/your-invite
+NEXT_PUBLIC_DISCORD_INVITE=https://discord.gg/7pPxs8knzV
 NEXT_PUBLIC_INSTAGRAM_URL=https://instagram.com/yourhandle
 NEXT_PUBLIC_TIKTOK_URL=https://tiktok.com/@yourhandle
 ```

@@ -74,7 +74,7 @@ export default function Hero() {
           </a>
           <div className="flex flex-col sm:flex-row gap-4 w-full justify-center items-stretch">
             <a 
-              href={process.env.NEXT_PUBLIC_DISCORD_INVITE || 'https://discord.gg/FDHMdcRt'} 
+              href={process.env.NEXT_PUBLIC_DISCORD_INVITE || 'https://discord.gg/7pPxs8knzV'} 
               target="_blank" 
               rel="noopener noreferrer"
               className="btn-secondary flex items-center gap-2 w-full justify-center flex-1 h-full min-h-[56px] !p-0 text-center"
