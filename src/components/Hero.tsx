@@ -61,7 +61,7 @@ export default function Hero() {
           </Link>
           {/* Instagram Button */}
           <a
-            href="https://instagram.com/kraken.motorsports"
+            href={process.env.NEXT_PUBLIC_INSTAGRAM_URL || "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary flex items-center gap-2 w-full justify-center"
