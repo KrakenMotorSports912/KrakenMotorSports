@@ -131,6 +131,8 @@ When the rig is built, add:
 
 ## 🦑 Unleash the Beast
 
+https://discord.gg/5DJtSRfaZZ
+
 The Kraken Motorsports experience is surfacing. Stay tuned for updates!
 
 ---
