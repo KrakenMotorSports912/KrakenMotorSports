@@ -265,7 +265,7 @@ npm run dev
 
 ## Support & Contact
 
-**Discord**: https://discord.gg/ag39FaqY  
+**Discord**: https://discord.gg/7pPxs8knzV  
 **Instagram**: https://www.instagram.com/krakenmotorsports912/  
 **TikTok**: https://www.tiktok.com/@krakenmotorsports912  
 **Email**: KrakenMotorSports912@gmail.com  

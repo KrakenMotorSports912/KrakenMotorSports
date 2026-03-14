@@ -406,6 +406,7 @@ export default function LiveLeaderboard({ mode = 'home' }: LiveLeaderboardProps)
     return `${eventItem.title} ${eventItem.game} ${eventItem.track}`.toLowerCase().includes(term)
   })
 
+  // Leaderboard auto-switch interval and interaction logic
   useEffect(() => {
     if (mode !== 'home' || highlightedPresets.length === 0) {
       return
@@ -413,16 +414,39 @@ export default function LiveLeaderboard({ mode = 'home' }: LiveLeaderboardProps)
 
     applyHighlightedPreset(highlightedPresets[highlightedPresetIndex % highlightedPresets.length])
 
-    const timer = setInterval(() => {
-      setHighlightedPresetIndex((previous) => {
-        const next = (previous + 1) % highlightedPresets.length
-        applyHighlightedPreset(highlightedPresets[next])
-        return next
-      })
-    }, 5000)
+    let paused = false;
+    const intervalMs = 15000; // 15 seconds for slower switching
+    let timer: NodeJS.Timeout;
 
-    return () => clearInterval(timer)
-  }, [mode, highlightedPresets])
+    const startTimer = () => {
+      timer = setInterval(() => {
+        if (!paused) {
+          setHighlightedPresetIndex((previous) => {
+            const next = (previous + 1) % highlightedPresets.length
+            applyHighlightedPreset(highlightedPresets[next])
+            return next
+          })
+        }
+      }, intervalMs)
+    };
+    startTimer();
+
+    // Pause on interaction
+    const pause = () => { paused = true; };
+    const resume = () => { paused = false; };
+    window.addEventListener('mousedown', pause);
+    window.addEventListener('touchstart', pause);
+    window.addEventListener('keydown', pause);
+    window.addEventListener('mouseleave', resume);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('mousedown', pause);
+      window.removeEventListener('touchstart', pause);
+      window.removeEventListener('keydown', pause);
+      window.removeEventListener('mouseleave', resume);
+    }
+  }, [mode, highlightedPresets, highlightedPresetIndex])
 
   return (
     <section id="leaderboard" className="py-24 bg-gradient-to-b from-kraken-dark to-kraken-deep">
@@ -435,26 +459,56 @@ export default function LiveLeaderboard({ mode = 'home' }: LiveLeaderboardProps)
         {mode === 'home' && (
           <div className="max-w-5xl mx-auto mb-6">
             <p className="text-center text-sm text-gray-400 mb-3">HIGHLIGHTED LEADERBOARDS</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {highlightedPresets.map((preset) => (
+            <div className="flex flex-wrap justify-center gap-2 items-center relative">
+              {/* Left Arrow */}
+              <button
+                aria-label="Previous Highlight"
+                onClick={() => {
+                  setHighlightedPresetIndex((prev) => {
+                    const next = (prev - 1 + highlightedPresets.length) % highlightedPresets.length;
+                    applyHighlightedPreset(highlightedPresets[next]);
+                    return next;
+                  });
+                }}
+                className="rounded-full p-2 bg-kraken-cyan/20 hover:bg-kraken-cyan/40 text-kraken-cyan transition-all"
+                style={{ position: 'absolute', left: '-48px', top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              {/* Highlighted Presets */}
+              {highlightedPresets.map((preset, idx) => (
                 <button
                   key={preset.id}
                   onClick={() => {
-                    const index = highlightedPresets.findIndex((item) => item.id === preset.id)
-                    if (index >= 0) {
-                      setHighlightedPresetIndex(index)
-                    }
-                    applyHighlightedPreset(preset)
+                    setHighlightedPresetIndex(idx);
+                    applyHighlightedPreset(preset);
                   }}
                   className={`px-4 py-2 text-sm font-display tracking-wide border-2 transition-all ${
                     isHighlightedPresetActive(preset)
-                      ? 'border-kraken-cyan bg-kraken-cyan text-kraken-dark hover:bg-kraken-cyan hover:text-kraken-dark'
+                      ? 'border-kraken-cyan bg-kraken-cyan text-kraken-dark animate-pulse'
                       : 'border-kraken-cyan text-kraken-cyan hover:bg-kraken-cyan hover:text-kraken-dark'
                   }`}
+                  style={{ transition: 'all 0.3s', boxShadow: idx === highlightedPresetIndex ? '0 0 12px #00fff7' : undefined }}
                 >
                   {preset.label}
                 </button>
               ))}
+              {/* Right Arrow */}
+              <button
+                aria-label="Next Highlight"
+                onClick={() => {
+                  setHighlightedPresetIndex((prev) => {
+                    const next = (prev + 1) % highlightedPresets.length;
+                    applyHighlightedPreset(highlightedPresets[next]);
+                    return next;
+                  });
+                }}
+                className="rounded-full p-2 bg-kraken-cyan/20 hover:bg-kraken-cyan/40 text-kraken-cyan transition-all"
+                style={{ position: 'absolute', right: '-48px', top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              {/* Event Buttons */}
               {events.slice(0, 2).map((eventItem) => (
                 <button
                   key={eventItem.id}
@@ -472,133 +526,137 @@ export default function LiveLeaderboard({ mode = 'home' }: LiveLeaderboardProps)
         )}
 
         <div className="mb-8 max-w-5xl mx-auto space-y-3">
-          <div className="flex flex-wrap justify-center items-start gap-3">
-            <div className="w-full sm:w-[260px]">
-              <select
-                value={viewMode}
-                onChange={(event) => setViewMode(event.target.value as ViewMode)}
-                className="input-field"
+          {/* Filter Dropdown */}
+          <details className="w-full mb-4">
+            <summary className="btn-secondary w-full text-center cursor-pointer">Filter Leaderboard</summary>
+            <div className="flex flex-wrap justify-center items-start gap-3 mt-4">
+              <div className="w-full sm:w-[260px]">
+                <select
+                  value={viewMode}
+                  onChange={(event) => setViewMode(event.target.value as ViewMode)}
+                  className="input-field"
+                >
+                  <option value="overall">Overall Leaderboard</option>
+                  <option value="game">Sort By Game</option>
+                  <option value="track">Sort By Track</option>
+                  <option value="car">Sort By Car</option>
+                  <option value="combination">Sort By Combination</option>
+                  <option value="event">Sort By Event</option>
+                </select>
+              </div>
+
+              {(viewMode === 'game' || viewMode === 'combination') && (
+                <div className="space-y-2 w-full sm:w-[260px]">
+                  <input
+                    value={gameSearch}
+                    onChange={(event) => setGameSearch(event.target.value)}
+                    className="input-field"
+                    placeholder="Search games..."
+                  />
+                  <select
+                    value={selectedGame}
+                    onChange={(event) => setSelectedGame(event.target.value)}
+                    className="input-field"
+                  >
+                    <option value="all">All Games</option>
+                    {filteredGames.map((game) => (
+                      <option key={game} value={game}>
+                        {game.replace(/_/g, ' ').toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(viewMode === 'track' || viewMode === 'combination') && (
+                <div className="space-y-2 w-full sm:w-[260px]">
+                  <input
+                    value={trackSearch}
+                    onChange={(event) => setTrackSearch(event.target.value)}
+                    className="input-field"
+                    placeholder="Search tracks..."
+                  />
+                  <select
+                    value={selectedTrack}
+                    onChange={(event) => setSelectedTrack(event.target.value)}
+                    className="input-field"
+                  >
+                    <option value="all">All Tracks</option>
+                    {filteredTracks.map((track) => (
+                      <option key={track} value={track}>
+                        {track}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(viewMode === 'car' || viewMode === 'combination') && (
+                <div className="space-y-2 w-full sm:w-[260px]">
+                  <input
+                    value={carSearch}
+                    onChange={(event) => setCarSearch(event.target.value)}
+                    className="input-field"
+                    placeholder="Search cars..."
+                  />
+                  <select
+                    value={selectedCar}
+                    onChange={(event) => setSelectedCar(event.target.value)}
+                    className="input-field"
+                  >
+                    <option value="all">All Cars</option>
+                    {filteredCars.map((car) => (
+                      <option key={car} value={car}>
+                        {car}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setSelectedGame('all')
+                  setSelectedTrack('all')
+                  setSelectedCar('all')
+                  setSelectedEventId('all')
+                  setViewMode('overall')
+                  setGameSearch('')
+                  setTrackSearch('')
+                  setCarSearch('')
+                  setEventSearch('')
+                }}
+                className="btn-secondary w-full sm:w-[260px]"
               >
-                <option value="overall">Overall Leaderboard</option>
-                <option value="game">Sort By Game</option>
-                <option value="track">Sort By Track</option>
-                <option value="car">Sort By Car</option>
-                <option value="combination">Sort By Combination</option>
-                <option value="event">Sort By Event</option>
-              </select>
+                CLEAR FILTERS
+              </button>
             </div>
 
-            {(viewMode === 'game' || viewMode === 'combination') && (
-              <div className="space-y-2 w-full sm:w-[260px]">
-                <input
-                  value={gameSearch}
-                  onChange={(event) => setGameSearch(event.target.value)}
-                  className="input-field"
-                  placeholder="Search games..."
-                />
-                <select
-                  value={selectedGame}
-                  onChange={(event) => setSelectedGame(event.target.value)}
-                  className="input-field"
-                >
-                  <option value="all">All Games</option>
-                  {filteredGames.map((game) => (
-                    <option key={game} value={game}>
-                      {game.replace(/_/g, ' ').toUpperCase()}
-                    </option>
-                  ))}
-                </select>
+            {viewMode === 'event' && (
+              <div className="flex justify-center mt-4">
+                <div className="space-y-2 w-full sm:w-[420px]">
+                  <input
+                    value={eventSearch}
+                    onChange={(event) => setEventSearch(event.target.value)}
+                    className="input-field"
+                    placeholder="Search events..."
+                  />
+                  <select
+                    value={selectedEventId}
+                    onChange={(event) => setSelectedEventId(event.target.value)}
+                    className="input-field"
+                  >
+                    <option value="all">All Events</option>
+                    {filteredEvents.map((eventItem) => (
+                      <option key={eventItem.id} value={eventItem.id}>
+                        {eventItem.title} ({eventItem.game.replace(/_/g, ' ')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
-
-            {(viewMode === 'track' || viewMode === 'combination') && (
-              <div className="space-y-2 w-full sm:w-[260px]">
-                <input
-                  value={trackSearch}
-                  onChange={(event) => setTrackSearch(event.target.value)}
-                  className="input-field"
-                  placeholder="Search tracks..."
-                />
-                <select
-                  value={selectedTrack}
-                  onChange={(event) => setSelectedTrack(event.target.value)}
-                  className="input-field"
-                >
-                  <option value="all">All Tracks</option>
-                  {filteredTracks.map((track) => (
-                    <option key={track} value={track}>
-                      {track}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {(viewMode === 'car' || viewMode === 'combination') && (
-              <div className="space-y-2 w-full sm:w-[260px]">
-                <input
-                  value={carSearch}
-                  onChange={(event) => setCarSearch(event.target.value)}
-                  className="input-field"
-                  placeholder="Search cars..."
-                />
-                <select
-                  value={selectedCar}
-                  onChange={(event) => setSelectedCar(event.target.value)}
-                  className="input-field"
-                >
-                  <option value="all">All Cars</option>
-                  {filteredCars.map((car) => (
-                    <option key={car} value={car}>
-                      {car}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setSelectedGame('all')
-                setSelectedTrack('all')
-                setSelectedCar('all')
-                setSelectedEventId('all')
-                setViewMode('overall')
-                setGameSearch('')
-                setTrackSearch('')
-                setCarSearch('')
-                setEventSearch('')
-              }}
-              className="btn-secondary w-full sm:w-[260px]"
-            >
-              CLEAR FILTERS
-            </button>
-          </div>
-
-          {viewMode === 'event' && (
-            <div className="flex justify-center">
-              <div className="space-y-2 w-full sm:w-[420px]">
-                <input
-                  value={eventSearch}
-                  onChange={(event) => setEventSearch(event.target.value)}
-                  className="input-field"
-                  placeholder="Search events..."
-                />
-                <select
-                  value={selectedEventId}
-                  onChange={(event) => setSelectedEventId(event.target.value)}
-                  className="input-field"
-                >
-                  <option value="all">All Events</option>
-                  {filteredEvents.map((eventItem) => (
-                    <option key={eventItem.id} value={eventItem.id}>
-                      {eventItem.title} ({eventItem.game.replace(/_/g, ' ')})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
+          </details>
         </div>
 
         {/* Leaderboard Table */}
@@ -628,7 +686,7 @@ export default function LiveLeaderboard({ mode = 'home' }: LiveLeaderboardProps)
                     </td>
                   </tr>
                 ) : (
-                  entries.map((entry, index) => (
+                  entries.slice(0, 10).map((entry, index) => (
                     <tr key={entry.id} className="table-row">
                       <td className="py-4 px-4">
                         <div className="flex items-center justify-center w-10">
