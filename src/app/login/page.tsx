@@ -10,6 +10,11 @@ type AuthUser = {
   identities?: Array<{ provider?: string }>
 }
 
+type OAuthResult = {
+  data?: { url?: string | null }
+  error: { message: string } | null
+}
+
 const hasDiscordIdentity = (user: AuthUser | null) => {
   if (!user) return false
   if (user.app_metadata?.provider === 'discord') return true
@@ -33,6 +38,44 @@ function LoginContent() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
+  const startDiscordOAuth = async (linkMode: boolean) => {
+    const redirectTo = `${window.location.origin}/login?linked=1`
+
+    const authApi = supabase.auth as unknown as {
+      linkIdentity?: (params: {
+        provider: 'discord'
+        options?: { redirectTo?: string; skipBrowserRedirect?: boolean }
+      }) => Promise<OAuthResult>
+      signInWithOAuth: (params: {
+        provider: 'discord'
+        options?: { redirectTo?: string; skipBrowserRedirect?: boolean }
+      }) => Promise<OAuthResult>
+    }
+
+    const result =
+      linkMode && typeof authApi.linkIdentity === 'function'
+        ? await authApi.linkIdentity({
+            provider: 'discord',
+            options: { redirectTo, skipBrowserRedirect: true },
+          })
+        : await authApi.signInWithOAuth({
+            provider: 'discord',
+            options: { redirectTo, skipBrowserRedirect: true },
+          })
+
+    if (result.error) {
+      return result
+    }
+
+    const redirectUrl = String(result.data?.url || '')
+    if (!redirectUrl) {
+      return { error: { message: 'Discord redirect URL was not returned.' } }
+    }
+
+    window.location.assign(redirectUrl)
+    return { error: null }
+  }
+
   useEffect(() => {
     const checkSessionAndMaybeLinkDiscord = async () => {
       const {
@@ -48,17 +91,13 @@ function LoginContent() {
         if (searchParams.get('link_discord') === '1' && !linked) {
           setLoading(true)
           setMessage('Redirecting to link your Discord account...')
-          const redirectTo = `${window.location.origin}/login?linked=1`
-          const authApi = supabase.auth as unknown as {
-            linkIdentity?: (params: { provider: 'discord'; options?: { redirectTo?: string } }) => Promise<{ error: { message: string } | null }>
-            signInWithOAuth: (params: { provider: 'discord'; options?: { redirectTo?: string } }) => Promise<{ error: { message: string } | null }>
+          const result = await startDiscordOAuth(true)
+          if (result.error) {
+            setLoading(false)
+            setMessage(result.error.message)
+            setAuthChecking(false)
           }
-          if (typeof authApi.linkIdentity === 'function') {
-            await authApi.linkIdentity({ provider: 'discord', options: { redirectTo } })
-          } else {
-            await authApi.signInWithOAuth({ provider: 'discord', options: { redirectTo } })
-          }
-          // The user will be redirected, so no need to do anything else
+          // Browser navigates away on success.
           return
         }
 
@@ -80,25 +119,13 @@ function LoginContent() {
     setLoading(true)
     setMessage('')
 
-    const redirectTo = `${window.location.origin}/login?linked=1`
-
-    const authApi = supabase.auth as unknown as {
-      linkIdentity?: (params: { provider: 'discord'; options?: { redirectTo?: string } }) => Promise<{ error: { message: string } | null }>
-      signInWithOAuth: (params: { provider: 'discord'; options?: { redirectTo?: string } }) => Promise<{ error: { message: string } | null }>
-    }
-
-    const result =
-      isAuthenticated && !isDiscordLinked && typeof authApi.linkIdentity === 'function'
-        ? await authApi.linkIdentity({ provider: 'discord', options: { redirectTo } })
-        : await authApi.signInWithOAuth({ provider: 'discord', options: { redirectTo } })
+    const result = await startDiscordOAuth(isAuthenticated && !isDiscordLinked)
 
     if (result.error) {
       setMessage(result.error.message)
       setLoading(false)
       return
     }
-
-    setLoading(false)
   }
 
   const handleGoogleAuth = async () => {
