@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient, isMissingBookingTables } from '@/lib/serverBooking'
+import { isStripeConfigured } from '@/lib/stripe'
 
 const isPhoneContact = (value: string) => /^\+?[0-9][0-9\s()\-]{6,}$/.test(value)
 
@@ -26,6 +27,9 @@ const queueConfirmationNotification = async (params: {
 
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get('authorization') || ''
+    const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
+
     const body = await request.json().catch(() => null)
     const slotId = (body?.slotId || '').trim()
     const fullName = (body?.fullName || '').trim()
@@ -38,6 +42,14 @@ export async function POST(request: NextRequest) {
     }
 
     const serviceClient = getServiceClient()
+
+    let userId: string | null = null
+    if (accessToken) {
+      const {
+        data: { user },
+      } = await serviceClient.auth.getUser(accessToken)
+      userId = user?.id || null
+    }
 
     const { data: slot, error: slotError } = await serviceClient
       .from('booking_slots')
@@ -77,6 +89,7 @@ export async function POST(request: NextRequest) {
       .from('booking_reservations')
       .insert({
         slot_id: slotId,
+        user_id: userId,
         full_name: fullName,
         email: contact,
         discord: discord || null,
@@ -112,8 +125,8 @@ export async function POST(request: NextRequest) {
       id: inserted.id,
       status: 'pending',
       next: {
-        paymentReady: false,
-        paymentPath: '/payment',
+        paymentReady: isStripeConfigured(),
+        paymentPath: '/api/payments/create-checkout-session',
       },
     })
   } catch (error) {

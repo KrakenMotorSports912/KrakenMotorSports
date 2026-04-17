@@ -5,6 +5,19 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+type AuthUser = {
+  app_metadata?: { provider?: string };
+  user_metadata?: { provider?: string };
+  identities?: Array<{ provider?: string }>;
+};
+
+const hasDiscordIdentity = (user: AuthUser | null) => {
+  if (!user) return false;
+  if (user.app_metadata?.provider === "discord") return true;
+  if (user.user_metadata?.provider === "discord") return true;
+  return (user.identities || []).some((identity) => identity.provider === "discord");
+};
+
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17,6 +30,7 @@ export default function ProfilePage() {
     discord: ""
   });
   const [message, setMessage] = useState("");
+  const [isDiscordLinked, setIsDiscordLinked] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -28,6 +42,9 @@ export default function ProfilePage() {
         router.push("/login?redirect=/profile");
         return;
       }
+
+      setIsDiscordLinked(hasDiscordIdentity(user as AuthUser));
+
       const { data, error } = await supabase
         .from("profiles")
         .select("display_name, first_name, last_name, email, phone, discord, id")
@@ -81,6 +98,10 @@ export default function ProfilePage() {
       setMessage("Profile updated!");
     }
     setSaving(false);
+  };
+
+  const handleConnectDiscord = () => {
+    router.push('/login?link_discord=1');
   };
 
   if (loading) return <main className="min-h-screen flex items-center justify-center">Loading...</main>;
@@ -155,6 +176,18 @@ export default function ProfilePage() {
               className="input-field"
               placeholder="yourname#1234 or @username"
             />
+            <p className="text-xs text-gray-400 mt-2">
+              Discord OAuth status: {isDiscordLinked ? 'Connected' : 'Not connected'}
+            </p>
+            {!isDiscordLinked && (
+              <button
+                type="button"
+                onClick={handleConnectDiscord}
+                className="btn-secondary mt-3"
+              >
+                Connect Discord Account
+              </button>
+            )}
           </div>
           {message && <p className="text-sm text-gray-300">{message}</p>}
           <div className="flex gap-4">

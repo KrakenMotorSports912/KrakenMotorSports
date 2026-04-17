@@ -73,6 +73,21 @@ export default function BookingsPage() {
   const [calendarDayStates, setCalendarDayStates] = useState<Record<string, 'open' | 'full'>>({})
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const payment = params.get('payment')
+
+    if (payment === 'success') {
+      setMessage('Payment confirmed. Your reservation is now confirmed.')
+      setError('')
+    }
+
+    if (payment === 'cancelled') {
+      setError('Payment was cancelled. You can try again below.')
+      setMessage('')
+    }
+  }, [])
+
+  useEffect(() => {
     const hydratePrefillData = async () => {
       try {
         const profileRaw = window.localStorage.getItem(PROFILE_PREFILL_KEY)
@@ -285,9 +300,18 @@ export default function BookingsPage() {
     setMessage('')
     setError('')
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    const accessToken = session?.access_token || null
+
     const response = await fetch('/api/bookings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
       body: JSON.stringify({
         slotId: selectedSlotId,
         fullName,
@@ -331,7 +355,33 @@ export default function BookingsPage() {
     } catch {
     }
 
-    setMessage('Booking request submitted. You are all set for now. Payment step will be enabled soon.')
+    const reservationId = String(payload?.id || '')
+    const paymentReady = Boolean(payload?.next?.paymentReady)
+
+    if (reservationId && paymentReady) {
+      const paymentResponse = await fetch('/api/payments/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ reservationId }),
+      })
+
+      const paymentPayload = await paymentResponse.json().catch(() => ({}))
+
+      if (paymentResponse.ok && paymentPayload.checkoutUrl) {
+        window.location.href = String(paymentPayload.checkoutUrl)
+        return
+      }
+
+      setError(paymentPayload.error || 'Reservation was created, but payment could not start. Please try again.')
+      setSubmitting(false)
+      fetchSlots()
+      return
+    }
+
+    setMessage('Booking request submitted. Payment is not configured yet, so your reservation stays pending.')
     setNotes('')
     setSubmitting(false)
     fetchSlots()
@@ -464,7 +514,7 @@ export default function BookingsPage() {
             <textarea className="input-field" rows={3} placeholder="Notes (optional)" value={notes} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNotes(event.target.value)} />
 
             <button type="submit" className="btn-primary w-full justify-center inline-flex" disabled={submitting || !selectedSlotId}>
-              {submitting ? 'SUBMITTING...' : 'REQUEST BOOKING'}
+              {submitting ? 'PROCESSING...' : 'RESERVE & PAY'}
             </button>
 
             <button type="button" className="btn-secondary w-full justify-center inline-flex" onClick={handleFinish} disabled={submitting}>

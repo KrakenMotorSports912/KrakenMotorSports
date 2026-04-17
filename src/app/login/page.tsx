@@ -293,12 +293,24 @@ function LoginContent() {
           </button>
         </form>
 
-        {/* Move Google button to bottom, always show */}
+        <button
+          type="button"
+          onClick={handleDiscordAuth}
+          disabled={loading || authChecking || (isAuthenticated && isDiscordLinked)}
+          className="btn-secondary w-full justify-center inline-flex mt-6"
+        >
+          {isAuthenticated && isDiscordLinked
+            ? 'DISCORD CONNECTED'
+            : isAuthenticated
+            ? 'CONNECT DISCORD'
+            : 'CONTINUE WITH DISCORD'}
+        </button>
+
         <button
           type="button"
           onClick={handleGoogleAuth}
           disabled={loading || authChecking}
-          className="btn-secondary w-full justify-center inline-flex mt-6"
+          className="btn-secondary w-full justify-center inline-flex mt-3"
         >
           CONTINUE WITH GOOGLE
         </button>

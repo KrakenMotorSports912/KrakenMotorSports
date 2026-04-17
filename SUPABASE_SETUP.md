@@ -9,6 +9,8 @@
 
 If your database is already live and still uses the old hardcoded game constraint, run `SUPABASE_FLEXIBLE_GAMES_UPDATE.sql` once to allow adding/removing games without schema edits.
 
+If you are enabling Stripe checkout for bookings, run `SUPABASE_BOOKINGS_STRIPE_UPDATE.sql` after `SUPABASE_BOOKINGS_SETUP.sql`.
+
 > **✨ NEW**: This setup includes automatic profile creation! When users sign up, a profile record is automatically created in the database via a trigger on `auth.users`.
 
 ---

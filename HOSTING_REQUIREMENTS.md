@@ -80,6 +80,12 @@
 - **Twitch API**: Stream integration (future)
 - **Discord Bot**: Community features (future)
 
+### Implemented (Current Build)
+- **Discord OAuth**: Login + account connection (link existing account to Discord identity)
+- **Stripe Checkout**: Booking payment sessions
+- **Stripe Webhook**: Marks reservation as paid/confirmed
+- **Local App Payment Confirm API**: Secure endpoint for your local desktop app to verify payment state
+
 ## Deployment Options Needed
 
 ### Hosting Platform
@@ -206,6 +212,50 @@
 - ✅ Backup & disaster recovery
 - ✅ Log aggregation
 - ✅ Error tracking
+
+## Required Environment Variables
+
+### Core Auth/Database
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+### Discord OAuth (Supabase Provider)
+- Configure Discord provider inside Supabase Auth providers
+- Add allowed redirect URL(s), including production domain and local domain
+
+### Stripe
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `NEXT_PUBLIC_SITE_URL` (recommended) or `APP_URL`
+
+### Local App Payment Confirmation
+- `LOCAL_APP_PAYMENT_CONFIRM_KEY` (shared secret between site backend and your local app)
+- `LOCAL_APP_ALLOWED_ORIGINS` (comma-separated origins allowed for browser-based local app calls)
+
+## Local App Integration Contract
+
+Use this endpoint to verify if a reservation is paid:
+
+- `POST /api/payments/confirm`
+- Header: `X-Kraken-App-Key: <LOCAL_APP_PAYMENT_CONFIRM_KEY>`
+- Body: `{ "reservationId": "<uuid>" }` or `{ "paymentId": "<stripe_checkout_session_id>" }`
+
+Response shape:
+
+```json
+{
+	"confirmed": true,
+	"reservation": {
+		"id": "...",
+		"status": "confirmed",
+		"is_paid": true,
+		"payment_id": "cs_test_..."
+	}
+}
+```
+
+For local browser app calls, add your app origin (example: `http://localhost:5173`) to `LOCAL_APP_ALLOWED_ORIGINS`.
 
 ## Red Flags to Avoid
 
