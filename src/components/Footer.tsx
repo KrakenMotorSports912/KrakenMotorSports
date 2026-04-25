@@ -90,8 +90,8 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-kr aken-cyan-dark pt-8 text-center text-gray-500">
-          <p>&copy; 2026 R.A.D. Produtions. All rights reserved.</p>
+        <div className="border-t border-kraken-cyan-dark pt-8 text-center text-gray-500">
+          <p>&copy; 2026 R.A.D. Productions. All rights reserved.</p>
           <p className="mt-2">Built with 🦑 and adrenaline</p>
         </div>
       </div>

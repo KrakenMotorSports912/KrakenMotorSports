@@ -9,12 +9,12 @@ export default function Hero() {
   const phaseContent = {
     prelaunch: {
       badge: 'COMING SOON TO REXBURG',
-      subtitle: 'The ultimate VR racing experience is surfacing...',
+      subtitle: "Rexburg's premier VR racing simulator is almost ready. Feel every turn, chase every tenth.",
       primaryCta: 'RESERVE FOUNDERS PASS',
     },
     active: {
       badge: 'OFFICIALLY LIVE',
-      subtitle: 'Kraken Motorsports is now open. Join events and hit the leaderboard.',
+      subtitle: 'Kraken Motorsports is open. Book your session, join events, and climb the leaderboard.',
       primaryCta: 'BOOK YOUR SESSION',
     },
     established: {
@@ -43,7 +43,7 @@ export default function Hero() {
         </div>
 
         <h2 className="text-3xl md:text-5xl font-display tracking-wider text-white mb-6">
-          🦑 UNLEASH THE BEAST 🦑
+          UNLEASH THE BEAST
         </h2>
         
         <p className="text-4xl md:text-6xl font-display tracking-wider text-kraken-pink text-glow-pink mb-4 animate-pulse-slow">
@@ -56,8 +56,8 @@ export default function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col gap-4 items-center w-full max-w-md mx-auto">
-          <Link href="/bookings?from=home" className="btn-secondary text-lg px-10 py-4 w-full hover:scale-105 transition-transform animate-glow">
-            BOOK NOW
+          <Link href="/bookings?from=home" className="btn-primary text-lg px-10 py-4 w-full hover:scale-105 transition-transform animate-glow">
+            BOOK YOUR SESSION
           </Link>
           {/* Instagram Button */}
           <a
@@ -88,17 +88,17 @@ export default function Hero() {
               </span>
             </a>
             <Link
-              href={phase === 'prelaunch' ? '#founders' : '#events'}
+              href={phase === 'prelaunch' ? '/founders-pass?from=home' : '#events'}
               className="btn-secondary w-full text-center flex-1 h-full min-h-[56px] flex items-center justify-center !p-0"
               style={{maxWidth: '100%'}}
             >
               <span className="w-full flex items-center justify-center h-full min-h-[56px] text-center">
                 {/* Two lines on desktop, one line on mobile */}
                 <span className="hidden xl:inline">
-                  RESERVE<br />FOUNDERS PASS
+                  {phase === 'prelaunch' ? 'RESERVE<br />FOUNDERS PASS' : 'VIEW<br />EVENTS'}
                 </span>
                 <span className="inline xl:hidden">
-                  RESERVE FOUNDERS PASS
+                  {phase === 'prelaunch' ? 'RESERVE FOUNDERS PASS' : 'VIEW EVENTS'}
                 </span>
               </span>
             </Link>

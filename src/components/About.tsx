@@ -35,13 +35,28 @@ export default function About() {
             </div>
           </div>
 
-          {/* Mockup */}
-          <div className="card min-h-[400px] flex flex-col items-center justify-center text-center box-glow-strong">
-            <div className="text-8xl mb-4">🦑</div>
-            <p className="text-2xl font-display tracking-wider text-kraken-cyan mb-4">
-              CONCEPT RENDER
-            </p>
-            <p className="text-gray-500 italic">Full hardware photos coming soon...</p>
+          {/* Visual Focus */}
+          <div className="grid gap-4">
+            <div className="card min-h-[190px] flex items-end box-glow-strong bg-gradient-to-br from-kraken-cyan/20 via-kraken-card to-kraken-dark">
+              <div>
+                <p className="text-xs tracking-widest text-kraken-cyan uppercase">Cockpit Precision</p>
+                <p className="text-2xl font-display tracking-wide text-white">Direct Drive + VR Stack</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="card min-h-[170px] flex items-end bg-gradient-to-b from-kraken-pink/15 to-kraken-card">
+                <div>
+                  <p className="text-xs tracking-widest text-kraken-cyan uppercase">Motion</p>
+                  <p className="text-xl font-display tracking-wide text-white">Real Chassis Feedback</p>
+                </div>
+              </div>
+              <div className="card min-h-[170px] flex items-end bg-gradient-to-b from-kraken-cyan/15 to-kraken-card">
+                <div>
+                  <p className="text-xs tracking-widest text-kraken-cyan uppercase">Competition</p>
+                  <p className="text-xl font-display tracking-wide text-white">Live Time Ranking</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -3,6 +3,8 @@ import About from '@/components/About'
 import LiveLeaderboard from '@/components/LiveLeaderboard'
 import FoundersPass from '@/components/FoundersPass'
 import UpcomingEvents from '@/components/UpcomingEvents'
+import PricingPackages from '@/components/PricingPackages'
+import Testimonials from '@/components/Testimonials'
 import Branding from '@/components/Branding'
 import Countdown from '@/components/Countdown'
 import Contact from '@/components/Contact'
@@ -17,9 +19,11 @@ export default function Home() {
       <Navigation />
       <Hero />
       <About />
+      <PricingPackages />
       <LiveLeaderboard mode="home" />
       <UpcomingEvents />
       <FoundersPass />
+      <Testimonials />
       <Branding />
       <Countdown />
       <Contact />

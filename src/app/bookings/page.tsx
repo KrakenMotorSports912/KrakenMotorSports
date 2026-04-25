@@ -391,8 +391,10 @@ export default function BookingsPage() {
     <main className="min-h-screen bg-kraken-dark px-4 py-20">
       <div className="container mx-auto max-w-5xl space-y-8">
         <div>
-          <h1 className="section-title">BOOK A SIM TIME</h1>
-          <p className="text-center text-gray-300">Pick a day and reserve an available simulator slot.</p>
+          <h1 className="section-title">BOOK YOUR KRAKEN EXPERIENCE</h1>
+          <p className="text-center text-gray-300">
+            Choose a session type, lock a time slot, and confirm your reservation in one flow.
+          </p>
         </div>
 
         <div className="card grid gap-6 lg:grid-cols-2">
@@ -525,6 +527,24 @@ export default function BookingsPage() {
             {error && <p className="text-red-400 text-sm">{error}</p>}
           </form>
         </div>
+
+        <section className="space-y-4">
+          <h2 className="text-3xl font-display tracking-wide text-kraken-cyan text-center">BOOKING FAQ</h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            <article className="card">
+              <h3 className="text-xl font-display tracking-wide text-white mb-2">How do cancellations work?</h3>
+              <p className="text-gray-400 text-sm">If your plans change, contact us as soon as possible and we will help move your slot.</p>
+            </article>
+            <article className="card">
+              <h3 className="text-xl font-display tracking-wide text-white mb-2">What should I bring?</h3>
+              <p className="text-gray-400 text-sm">Bring comfortable clothes and your confirmation details. We handle all rig setup onsite.</p>
+            </article>
+            <article className="card">
+              <h3 className="text-xl font-display tracking-wide text-white mb-2">Is this beginner friendly?</h3>
+              <p className="text-gray-400 text-sm">Yes. New drivers get a quick orientation before the timer starts, then you race at your own pace.</p>
+            </article>
+          </div>
+        </section>
       </div>
     </main>
   )
