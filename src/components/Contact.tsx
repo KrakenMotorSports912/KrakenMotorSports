@@ -4,9 +4,23 @@ export default function Contact() {
   return (
     <section id="contact" className="py-24 bg-kraken-dark">
       <div className="container mx-auto px-4">
-        <h2 className="section-title">STAY CONNECTED</h2>
+        <h2 className="section-title">GET IN TOUCH</h2>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-12">
+          {/* Contact Form */}
+          <div className="md:col-span-1 card">
+            <h3 className="text-2xl font-display tracking-wide text-kraken-cyan mb-4">
+              CONTACT FORM
+            </h3>
+            <form className="space-y-4" action="mailto:KrakenMotorSports912@gmail.com" method="POST" encType="text/plain">
+              <input type="text" placeholder="Name" className="input-field" required />
+              <input type="email" placeholder="Email" className="input-field" required />
+              <input type="text" placeholder="Subject" className="input-field" required />
+              <textarea placeholder="Message" rows={4} className="input-field" required></textarea>
+              <button type="submit" className="btn-primary w-full text-center">SEND MESSAGE</button>
+            </form>
+          </div>
+          
           {/* Discord */}
           <div className="card flex flex-col justify-between">
             <div>
@@ -14,8 +28,7 @@ export default function Contact() {
                 JOIN THE COMMUNITY
               </h3>
               <p className="text-gray-400 mb-6">
-                Get behind-the-scenes updates, participate in naming polls, and be the first 
-                to know about Founders Pass availability.
+                Connect with other drivers, get behind-the-scenes updates, and stay informed about events and Founders Pass availability.
               </p>
             </div>
             <a 

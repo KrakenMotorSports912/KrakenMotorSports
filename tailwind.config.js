@@ -11,15 +11,18 @@ module.exports = {
         'kraken': {
           cyan: '#00ffff',
           'cyan-dark': '#0088aa',
+          'pink': '#ff00ff',
+          'pink-dark': '#b800b8',
           'deep': '#001a1a',
           'dark': '#0a0a0a',
-          'card': '#1a1a1a',
-          'pink': '#ff00ff',
+          'card': '#2c2c2c', // Blueprint: medium dark gray for cards
+          'gray': '#e0e0e0',
         },
       },
       fontFamily: {
-        'display': ['Bebas Neue', 'Impact', 'sans-serif'],
-        'body': ['Rajdhani', 'Helvetica', 'Arial', 'sans-serif'],
+        'display': ['Montserrat', 'Oswald', 'Bebas Neue', 'Impact', 'sans-serif'],
+        'body': ['Inter', 'Roboto', 'Rajdhani', 'Helvetica', 'Arial', 'sans-serif'],
+        'accent': ['Space Mono', 'monospace'],
       },
       animation: {
         'glow': 'glow 3s ease-in-out infinite',

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Oswald:wght@700&family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,12 +6,23 @@
 
 @layer base {
   html, body {
-    @apply bg-kraken-dark text-white font-body;
+    @apply bg-kraken-dark text-kraken-gray font-body;
     overflow-x: hidden;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-display;
+  h1, h2, h3 {
+    @apply font-display font-bold text-kraken-cyan;
+  }
+  h4, h5, h6 {
+    @apply font-display font-bold text-white;
+  }
+  strong, b, .accent {
+    @apply font-accent text-kraken-pink;
+  }
+  .accent-cyan {
+    @apply font-accent text-kraken-cyan;
+  }
+  p, li, ul, ol {
+    @apply font-body text-kraken-gray;
   }
 }
 

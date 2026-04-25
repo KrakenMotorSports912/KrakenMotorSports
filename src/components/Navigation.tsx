@@ -74,13 +74,13 @@ export default function Navigation() {
     : 'LOG IN'
 
   const navLinks = [
-    { href: '#home', label: 'Home' },
-    { href: '#about', label: 'About' },
+    { href: '/', label: 'Home' },
+    { href: '/about', label: 'About' },
     { href: '/bookings?from=home', label: 'Bookings' },
-    { href: '#leaderboard', label: 'Leaderboard' },
-    { href: '#events', label: 'Events' },
-    { href: '#founders', label: 'Founders Pass' },
-    { href: '#contact', label: 'Contact' },
+    { href: '/leaderboards', label: 'Leaderboard' },
+    { href: '/events', label: 'Events' },
+    { href: '/founders-pass', label: 'Founders Pass' },
+    { href: '/contact', label: 'Contact' },
   ]
 
   return (
