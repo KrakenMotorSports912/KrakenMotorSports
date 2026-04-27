@@ -51,12 +51,12 @@ export default function Hero() {
             </svg>
             FOLLOW ON INSTAGRAM
           </a>
-          <div className="flex flex-col sm:flex-row gap-4 w-full justify-center items-stretch">
+          <div className="flex flex-col sm:flex-row gap-4 w-full justify-center items-stretch lg:max-w-4xl xl:max-w-5xl">
             <a 
               href={process.env.NEXT_PUBLIC_DISCORD_INVITE || 'https://discord.gg/5DJtSRfaZZ'} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="btn-secondary flex items-center gap-2 w-full justify-center flex-1 h-full min-h-[56px] !p-0 text-center"
+              className="btn-secondary flex items-center gap-2 w-full justify-center flex-1 h-full min-h-[56px] lg:min-w-[220px] !p-0 text-center"
               style={{maxWidth: '100%'}}
             >
               <span className="w-full flex items-center justify-center h-full min-h-[56px] text-center">
@@ -68,14 +68,14 @@ export default function Hero() {
             </a>
             <Link
               href="#events"
-              className="btn-secondary w-full text-center flex-1 h-full min-h-[56px] flex items-center justify-center !p-0"
+              className="btn-secondary w-full text-center flex-1 h-full min-h-[56px] lg:min-w-[220px] flex items-center justify-center !p-0"
               style={{maxWidth: '100%'}}
             >
               <span className="w-full flex items-center justify-center h-full min-h-[56px] text-center">
                 VIEW EVENTS
               </span>
             </Link>
-            <Link href="#leaderboard" className="btn-secondary w-full text-center flex-1 h-full min-h-[56px] flex items-center justify-center !p-0" style={{maxWidth: '100%'}}>
+            <Link href="#leaderboard" className="btn-secondary w-full text-center flex-1 h-full min-h-[56px] lg:min-w-[220px] flex items-center justify-center !p-0" style={{maxWidth: '100%'}}>
               <span className="w-full flex items-center justify-center h-full min-h-[56px] text-center">
                 LEADERBOARDS
               </span>
