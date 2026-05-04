@@ -661,55 +661,54 @@ export default function LiveLeaderboard({ mode = 'home' }: LiveLeaderboardProps)
 
         {/* Leaderboard Table */}
         <div className="max-w-5xl mx-auto card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="table-header">
-                  <th className="py-4 px-4 text-left">RANK</th>
-                  <th className="py-4 px-4 text-left">DRIVER</th>
-                  <th className="py-4 px-4 text-left hidden md:table-cell">TRACK</th>
-                  <th className="py-4 px-4 text-left">TIME</th>
-                  <th className="py-4 px-4 text-left hidden lg:table-cell">CAR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-12">
-                      <div className="loading-spinner mx-auto"></div>
-                    </td>
-                  </tr>
-                ) : entries.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-12 text-gray-400">
-                      No entries yet. Be the first to submit a time!
-                    </td>
-                  </tr>
-                ) : (
-                  entries.slice(0, 10).map((entry, index) => (
-                    <tr key={entry.id} className="table-row">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center justify-center w-10">
-                          {getRankIcon(Math.max(entry.rank - 1, 0))}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 font-display text-lg tracking-wide whitespace-normal break-words max-w-[220px] align-top">
-                        {entry.driver_name}
-                      </td>
-                      <td className="py-4 px-4 text-gray-400 hidden md:table-cell">
-                        {entry.track}
-                      </td>
-                      <td className="py-4 px-4 font-mono text-kraken-cyan font-bold text-lg">
-                        {entry.lap_time_display}
-                      </td>
-                      <td className="py-4 px-4 text-gray-400 text-sm hidden lg:table-cell whitespace-normal break-words max-w-[280px] align-top">
-                        {entry.car}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="hidden md:grid grid-cols-[88px_minmax(0,2fr)_minmax(0,1.5fr)_140px_minmax(0,1.8fr)] gap-4 px-5 py-4 bg-gradient-to-r from-kraken-cyan/20 to-transparent text-[11px] uppercase tracking-[0.35em] text-kraken-cyan/90 border-b border-white/10">
+            <div>Rank</div>
+            <div>Driver</div>
+            <div>Track</div>
+            <div>Time</div>
+            <div>Car</div>
+          </div>
+
+          <div className="space-y-3 p-4 md:p-5">
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="loading-spinner mx-auto"></div>
+              </div>
+            ) : entries.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 border border-dashed border-white/10 bg-black/20">
+                No entries yet. Be the first to submit a time!
+              </div>
+            ) : (
+              entries.slice(0, 10).map((entry) => {
+                const rankIndex = Math.max(entry.rank - 1, 0)
+
+                return (
+                  <div
+                    key={entry.id}
+                    className="grid gap-4 md:grid-cols-[88px_minmax(0,2fr)_minmax(0,1.5fr)_140px_minmax(0,1.8fr)] items-center border border-white/10 bg-kraken-dark/75 px-4 py-4 transition-all duration-300 hover:border-kraken-cyan/50 hover:bg-kraken-cyan/5 hud-row"
+                  >
+                    <div className="flex items-center justify-start md:justify-center">
+                      <div className="flex items-center justify-center min-w-12 h-12 rounded-full border border-white/10 bg-black/30 text-center">
+                        {getRankIcon(rankIndex)}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="font-display text-lg tracking-wide text-white break-words">{entry.driver_name}</p>
+                      <p className="md:hidden text-xs uppercase tracking-[0.25em] text-kraken-cyan/70 mt-1">{entry.track}</p>
+                    </div>
+
+                    <p className="hidden md:block text-gray-300 break-words">{entry.track}</p>
+
+                    <div className="font-mono text-kraken-cyan font-bold text-lg md:text-xl whitespace-nowrap">
+                      {entry.lap_time_display}
+                    </div>
+
+                    <p className="hidden lg:block text-gray-400 text-sm break-words">{entry.car}</p>
+                  </div>
+                )
+              })
+            )}
           </div>
 
           {/* Submit Time CTA */}

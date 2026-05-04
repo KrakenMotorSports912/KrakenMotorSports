@@ -3,6 +3,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import PricingPackages from '@/components/PricingPackages'
 
 type Slot = {
   id: string
@@ -527,6 +528,8 @@ export default function BookingsPage() {
             {error && <p className="text-red-400 text-sm">{error}</p>}
           </form>
         </div>
+
+        <PricingPackages />
 
         <section className="space-y-4">
           <h2 className="text-3xl font-display tracking-wide text-kraken-cyan text-center">BOOKING FAQ</h2>

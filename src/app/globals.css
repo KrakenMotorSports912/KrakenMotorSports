@@ -30,19 +30,23 @@
   .btn-primary {
     @apply px-6 py-3 bg-kraken-cyan text-kraken-dark font-display text-lg tracking-wider 
            hover:bg-transparent hover:text-kraken-cyan border-2 border-kraken-cyan 
-           transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,255,255,0.5)];
+        transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,255,255,0.5)] hover:-translate-y-0.5;
+      clip-path: polygon(0 0, 94% 0, 100% 20%, 100% 100%, 6% 100%, 0 80%);
   }
   
   .btn-secondary {
     @apply px-6 py-3 bg-transparent text-kraken-cyan font-display text-lg tracking-wider 
            border-2 border-kraken-cyan hover:bg-kraken-cyan hover:text-kraken-dark 
-           transition-all duration-300;
+        transition-all duration-300 hover:-translate-y-0.5;
+      clip-path: polygon(0 0, 94% 0, 100% 20%, 100% 100%, 6% 100%, 0 80%);
   }
   
   .card {
     @apply bg-kraken-card border-2 border-kraken-cyan-dark p-6 
            hover:border-kraken-cyan hover:shadow-[0_0_20px_rgba(0,255,255,0.3)] 
-           transition-all duration-300;
+        transition-all duration-300;
+      clip-path: polygon(0 0, 97% 0, 100% 8%, 100% 100%, 3% 100%, 0 92%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
   
   .section-title {
@@ -64,6 +68,10 @@
   .table-row {
     @apply border-b border-kraken-cyan-dark hover:bg-kraken-cyan/10 
            transition-colors duration-200;
+  }
+
+  .hud-row {
+    clip-path: polygon(0 0, 98% 0, 100% 18%, 100% 100%, 2% 100%, 0 82%);
   }
 }
 
