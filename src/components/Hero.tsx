@@ -1,8 +1,47 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useLaunchSettings } from '@/lib/useLaunchSettings'
+
+const toCountdownParts = (targetIso: string) => {
+  const targetDate = new Date(targetIso).getTime()
+  const now = Date.now()
+  const distance = targetDate - now
+
+  if (Number.isNaN(targetDate) || distance <= 0) {
+    return {
+      isComplete: true,
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+    }
+  }
+
+  return {
+    isComplete: false,
+    days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+    minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+    seconds: Math.floor((distance % (1000 * 60)) / 1000),
+  }
+}
 
 export default function Hero() {
+  const { launchDate } = useLaunchSettings()
+  const [nowTick, setNowTick] = useState(Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowTick(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const countdown = useMemo(() => {
+    void nowTick
+    return toCountdownParts(launchDate)
+  }, [launchDate, nowTick])
+
   // Blueprint: Always show the premium headline, subheadline, and video/photo background
   return (
     <section id="home" className="min-h-screen flex flex-col justify-center items-center relative overflow-hidden pt-20 pb-24">
@@ -36,9 +75,33 @@ export default function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col gap-4 items-center w-full max-w-md mx-auto">
-          <Link href="/bookings?from=home" className="btn-primary text-lg px-10 py-4 w-full hover:scale-105 transition-transform animate-glow">
-            BOOK YOUR SESSION
-          </Link>
+          {countdown.isComplete ? (
+            <Link href="/bookings?from=home" className="btn-primary text-lg px-10 py-4 w-full hover:scale-105 transition-transform animate-glow">
+              BOOK YOUR SESSION
+            </Link>
+          ) : (
+            <div className="w-full border-2 border-kraken-cyan bg-black/45 backdrop-blur-sm px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-kraken-cyan/90 text-center mb-2">Booking Opens In</p>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div>
+                  <p className="font-display text-xl md:text-2xl text-kraken-cyan">{String(countdown.days).padStart(2, '0')}</p>
+                  <p className="text-[10px] text-gray-400 tracking-[0.22em]">DAYS</p>
+                </div>
+                <div>
+                  <p className="font-display text-xl md:text-2xl text-kraken-cyan">{String(countdown.hours).padStart(2, '0')}</p>
+                  <p className="text-[10px] text-gray-400 tracking-[0.22em]">HRS</p>
+                </div>
+                <div>
+                  <p className="font-display text-xl md:text-2xl text-kraken-cyan">{String(countdown.minutes).padStart(2, '0')}</p>
+                  <p className="text-[10px] text-gray-400 tracking-[0.22em]">MIN</p>
+                </div>
+                <div>
+                  <p className="font-display text-xl md:text-2xl text-kraken-cyan">{String(countdown.seconds).padStart(2, '0')}</p>
+                  <p className="text-[10px] text-gray-400 tracking-[0.22em]">SEC</p>
+                </div>
+              </div>
+            </div>
+          )}
           <a
             href={process.env.NEXT_PUBLIC_INSTAGRAM_URL || '#'}
             target="_blank"
