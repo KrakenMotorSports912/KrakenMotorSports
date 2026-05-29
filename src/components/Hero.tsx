@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useLaunchSettings } from '@/lib/useLaunchSettings'
 
@@ -42,26 +42,185 @@ export default function Hero() {
     return toCountdownParts(launchDate)
   }, [launchDate, nowTick])
 
+  // Background video rotation with full-play & crossfade
+  const videos = [
+    '/videos/kraken-hero-loop.mp4',
+    '/videos/hero-background-loop.mp4',
+    '/videos/rig-teaser.mp4',
+  ]
+
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [showFirst, setShowFirst] = useState(true)
+  const v1Ref = useRef<HTMLVideoElement | null>(null)
+  const v2Ref = useRef<HTMLVideoElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [useVideo, setUseVideo] = useState(true)
+
+  const currentIndexRef = useRef(currentIndex)
+  const showFirstRef = useRef(showFirst)
+  useEffect(() => {
+    currentIndexRef.current = currentIndex
+  }, [currentIndex])
+  useEffect(() => {
+    showFirstRef.current = showFirst
+  }, [showFirst])
+
+  // Play next video when the current one ends; crossfade into the incoming video.
+  useEffect(() => {
+    const v1 = v1Ref.current
+    const v2 = v2Ref.current
+    if (!v1 || !v2) return
+
+    // bail out early if user prefers reduced data/motion
+    const nav: any = typeof navigator !== 'undefined' ? navigator : {}
+    const conn = nav.connection || {}
+    const saveData = !!conn.saveData
+    const effectiveType = conn.effectiveType || ''
+    const prefersReduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (saveData || prefersReduced || effectiveType.startsWith('2g')) {
+      setUseVideo(false)
+      return
+    }
+
+    // determine preferred quality based on detected connection/device
+    const chooseQuality = () => {
+      if (saveData) return '480'
+      if (effectiveType.startsWith('2g') || effectiveType === 'slow-2g') return '360'
+      if (effectiveType === '3g') return '720'
+      // '4g' and unknown -> 1080
+      return '1080'
+    }
+    const quality = chooseQuality()
+
+    const makeVariant = (url: string, q: string) => {
+      try {
+        return url.replace(/\.mp4$/i, `-${q}.mp4`)
+      } catch (e) {
+        return url
+      }
+    }
+
+    // initialize first video (metadata only)
+    v1.preload = 'metadata'
+    v2.preload = 'metadata'
+    v1.src = makeVariant(videos[0], quality)
+    v1.currentTime = 0
+    void v1.play().catch(() => {
+      // fallback to original if variant fails
+      try { v1.src = videos[0]; void v1.play().catch(()=>{}) } catch(e) {}
+    })
+
+    let isMounted = true
+
+    const playNext = () => {
+      if (!isMounted) return
+      const next = (currentIndexRef.current + 1) % videos.length
+      const incomingRef = showFirstRef.current ? v2 : v1
+      const outgoingRef = showFirstRef.current ? v1 : v2
+
+      // load incoming variant but don't block; use requestIdleCallback if available
+      const preloadIncoming = () => {
+        try {
+          const variant = makeVariant(videos[next], quality)
+          incomingRef.src = variant
+          incomingRef.load()
+          // if error loading variant, fall back to original
+          const onError = () => {
+            try { incomingRef.src = videos[next]; incomingRef.load(); } catch (e) {}
+            incomingRef.removeEventListener('error', onError)
+          }
+          incomingRef.addEventListener('error', onError)
+        } catch (e) {}
+      }
+      if ((window as any).requestIdleCallback) {
+        ;(window as any).requestIdleCallback(preloadIncoming)
+      } else {
+        setTimeout(preloadIncoming, 200)
+      }
+
+      // start incoming shortly before outgoing ends to allow overlap
+      setTimeout(() => {
+        try { void incomingRef.play(); } catch (e) {}
+        setShowFirst((s) => !s)
+        setCurrentIndex(next)
+      }, 80)
+
+      // after fade, pause outgoing
+      setTimeout(() => {
+        try { outgoingRef.pause(); } catch (e) {}
+      }, 1200)
+    }
+
+    v1.addEventListener('ended', playNext)
+    v2.addEventListener('ended', playNext)
+
+    // Pause playback when hero is offscreen to save CPU/bandwidth
+    const obsEl = containerRef.current
+    let io: IntersectionObserver | null = null
+    if (obsEl && (window as any).IntersectionObserver) {
+      io = new IntersectionObserver((entries) => {
+        const e = entries[0]
+        if (!e.isIntersecting) {
+          try { v1.pause(); v2.pause(); } catch (e) {}
+        } else {
+          // resume the visible one
+          try { if (showFirstRef.current) { v1.play().catch(()=>{}); } else { v2.play().catch(()=>{}); } } catch (er) {}
+        }
+      }, { threshold: 0.25 })
+      io.observe(obsEl)
+    }
+
+    return () => {
+      isMounted = false
+      v1.removeEventListener('ended', playNext)
+      v2.removeEventListener('ended', playNext)
+      if (io && obsEl) io.unobserve(obsEl)
+    }
+  }, [])
+
   // Blueprint: Always show the premium headline, subheadline, and video/photo background
   return (
     <section id="home" className="min-h-screen flex flex-col justify-center items-center relative overflow-hidden pt-20 pb-24">
       {/* Video Background (blueprint: 3-5s loop, fallback to image) */}
-      <div className="absolute inset-0 z-0">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          poster="/images/kraken-rig-hero.jpg"
-          className="w-full h-full object-cover object-center opacity-60"
-          style={{ minHeight: '100%', minWidth: '100%' }}
-        >
-          <source src="/videos/kraken-hero-loop.mp4" type="video/mp4" />
-        </video>
-        {/* fallback gradient overlays for extra mood */}
-        <div className="absolute inset-0 bg-gradient-to-br from-kraken-dark via-kraken-deep to-kraken-cyan-dark opacity-60" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(0,255,255,0.10),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_30%,rgba(255,0,255,0.10),transparent_50%)]" />
+      <div ref={containerRef} className="absolute inset-0 z-0">
+        {useVideo ? (
+          <>
+            <video
+              ref={v1Ref}
+              muted
+              playsInline
+              preload="metadata"
+              poster="/images/kraken-rig-hero.jpg"
+              className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000 pointer-events-none ${showFirst ? 'opacity-100' : 'opacity-0'}`}
+              style={{ minHeight: '100%', minWidth: '100%' }}
+            />
+
+            <video
+              ref={v2Ref}
+              muted
+              playsInline
+              preload="metadata"
+              poster="/images/kraken-rig-hero.jpg"
+              className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000 pointer-events-none ${showFirst ? 'opacity-0' : 'opacity-100'}`}
+              style={{ minHeight: '100%', minWidth: '100%' }}
+            />
+          </>
+        ) : (
+          <div
+            aria-hidden
+            style={{
+              backgroundImage: `url(/images/kraken-rig-hero.jpg)`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              width: '100%',
+              height: '100%',
+            }}
+          />
+        )}
+        {/* fallback gradient overlays for extra mood (further reduced) */}
+        <div className="absolute inset-0 bg-gradient-to-br from-kraken-dark via-kraken-deep to-kraken-cyan-dark opacity-10" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(0,255,255,0.04),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_30%,rgba(255,0,255,0.03),transparent_50%)]" />
       </div>
 
       {/* Content */}
