@@ -21,5 +21,5 @@ export const getAppBaseUrl = (requestOrigin?: string) => {
   const configured = process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL
   if (configured) return configured.replace(/\/$/, '')
   if (requestOrigin) return requestOrigin.replace(/\/$/, '')
-  return 'http://localhost:3000'
+  return 'https://kraken-simracing.com'
 }

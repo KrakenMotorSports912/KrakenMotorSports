@@ -107,7 +107,7 @@ NEXT_PUBLIC_FOUNDERS_PASS_PAYPAL=https://paypal.me/yourlink
 NEXT_PUBLIC_FOUNDERS_PASS_VENMO=@yourusername
 
 # Site URLs:
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=https://kraken-simracing.com
 NEXT_PUBLIC_DISCORD_INVITE=https://discord.gg/5DJtSRfaZZ
 NEXT_PUBLIC_INSTAGRAM_URL=https://www.instagram.com/krakenmotorsports912/
 NEXT_PUBLIC_TIKTOK_URL=https://www.tiktok.com/@krakenmotorsports912
