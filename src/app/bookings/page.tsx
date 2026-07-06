@@ -316,7 +316,7 @@ export default function BookingsPage() {
       body: JSON.stringify({
         slotId: selectedSlotId,
         fullName,
-        contact,
+        // contact,
         discord,
         notes,
       }),
@@ -335,7 +335,7 @@ export default function BookingsPage() {
         BOOKING_PREFILL_KEY,
         JSON.stringify({
           fullName: fullName.trim(),
-          contact: contact.trim(),
+          // contact: contact.trim(),
           discord: discord.trim(),
         })
       )
