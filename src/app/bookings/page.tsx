@@ -512,7 +512,7 @@ export default function BookingsPage() {
             )}
 
             <input className="input-field" placeholder="Full Name" value={fullName} onChange={(event: ChangeEvent<HTMLInputElement>) => setFullName(event.target.value)} required />
-            <input className="input-field" placeholder="Email or Phone" type="text" value={contact} onChange={(event: ChangeEvent<HTMLInputElement>) => setContact(event.target.value)} required />
+            {/* <input className="input-field" placeholder="Email or Phone" type="text" value={contact} onChange={(event: ChangeEvent<HTMLInputElement>) => setContact(event.target.value)} required /> */}
             <input className="input-field" placeholder="Discord (optional)" value={discord} onChange={(event: ChangeEvent<HTMLInputElement>) => setDiscord(event.target.value)} />
             <textarea className="input-field" rows={3} placeholder="Notes (optional)" value={notes} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNotes(event.target.value)} />
 
