@@ -63,7 +63,7 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedSlotId, setSelectedSlotId] = useState('')
   const [fullName, setFullName] = useState('')
-  const [contact, setContact] = useState('')
+  // const [contact, setContact] = useState('')
   const [discord, setDiscord] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -97,7 +97,7 @@ export default function BookingsPage() {
             fullName?: string
             firstName?: string
             lastName?: string
-            contact?: string
+            // contact?: string
             discord?: string
           }
 
@@ -114,13 +114,13 @@ export default function BookingsPage() {
         if (storedRaw) {
           const stored = JSON.parse(storedRaw) as {
             fullName?: string
-            contact?: string
+            // contact?: string
             email?: string
             discord?: string
           }
 
           setFullName((previous: string) => previous || String(stored.fullName || ''))
-          setContact((previous: string) => previous || String(stored.contact || stored.email || ''))
+          // setContact((previous: string) => previous || String(stored.contact || stored.email || ''))
           setDiscord((previous: string) => previous || String(stored.discord || ''))
         }
       } catch {
@@ -150,7 +150,7 @@ export default function BookingsPage() {
 
       const profileDisplayName = String(profile?.display_name || '')
 
-      setContact((previous: string) => previous || String(user.email || ''))
+      // setContact((previous: string) => previous || String(user.email || ''))
       setFullName((previous: string) => previous || profileDisplayName || fallbackName)
       setDiscord((previous: string) => previous || fallbackDiscord)
     }
@@ -286,7 +286,7 @@ export default function BookingsPage() {
   const handleFinish = () => {
     setSelectedSlotId('')
     setFullName('')
-    setContact('')
+    // setContact('')
     setDiscord('')
     setNotes('')
     setMessage('')
